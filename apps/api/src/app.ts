@@ -6,6 +6,7 @@ import type { Env } from "./config/env.js";
 import prismaPlugin from "./plugins/prisma.js";
 import sessionPlugin from "./middleware/session.js";
 import authRoutes from "./modules/auth/auth.routes.js";
+import disponibilidadRoutes from "./modules/disponibilidad/disponibilidad.routes.js";
 import { MockEmailSender } from "./modules/email/mock-email-sender.js";
 import { SmtpEmailSender } from "./modules/email/smtp-email-sender.js";
 import type { EmailSender } from "./modules/email/email-sender.js";
@@ -32,6 +33,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(
     async (instance) => {
       await instance.register(authRoutes, { env, emailSender });
+      await instance.register(disponibilidadRoutes);
     },
     { prefix: "/api" },
   );

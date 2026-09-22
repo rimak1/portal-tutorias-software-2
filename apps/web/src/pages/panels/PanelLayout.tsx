@@ -2,7 +2,22 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/auth-context";
 
-export function PanelLayout({ titulo, children }: { titulo: string; children: ReactNode }) {
+export interface CategoriaPanel {
+  etiqueta: string;
+  seleccionada?: boolean;
+  /** false cuando la categoria todavia no tiene una funcion real detras (llega en otra entrega). */
+  disponible?: boolean;
+}
+
+export function PanelLayout({
+  titulo,
+  categorias,
+  children,
+}: {
+  titulo: string;
+  categorias: CategoriaPanel[];
+  children: ReactNode;
+}) {
   const { usuario, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -30,7 +45,27 @@ export function PanelLayout({ titulo, children }: { titulo: string; children: Re
           </button>
         </div>
       </header>
-      <main className="contenido-panel">{children}</main>
+      <div className="panel-cuerpo">
+        <aside className="panel-sidebar">
+          <span className="panel-sidebar__titulo">Categorías</span>
+          <ul>
+            {categorias.map((categoria) => (
+              <li
+                key={categoria.etiqueta}
+                className={
+                  categoria.seleccionada ? "panel-sidebar__item panel-sidebar__item--activo" : "panel-sidebar__item"
+                }
+              >
+                <span>{categoria.etiqueta}</span>
+                {categoria.disponible === false && (
+                  <span className="panel-sidebar__etiqueta">Próximamente</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </aside>
+        <main className="contenido-panel">{children}</main>
+      </div>
     </div>
   );
 }

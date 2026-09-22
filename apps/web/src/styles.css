@@ -15,8 +15,10 @@
   --dorado-500: #c9a24b;
   --dorado-400: #ddb968;
   --dorado-300: #ecd9a8;
+  --dorado-700: #96742a;
 
   --rosa-500: #d8636a;
+  --rosa-700: #a83c44;
 
   --texto-alto: #eef5f0;
   --texto-medio: #a9c0b2;
@@ -24,6 +26,14 @@
 
   --linea: rgba(216, 232, 222, 0.1);
   --linea-fuerte: rgba(216, 232, 222, 0.18);
+
+  /* Superficie clara del contenido autenticado (paneles): un blanco calido, no puro. */
+  --crema-50: #f5f1e6;
+  --crema-100: #fcfaf3;
+  --crema-linea: rgba(18, 33, 25, 0.1);
+  --texto-crema-alto: #16261d;
+  --texto-crema-medio: #4d6357;
+  --texto-crema-tenue: #7c8d80;
 
   --radio-sm: 10px;
   --radio-md: 16px;
@@ -232,6 +242,28 @@ a {
   color: var(--texto-medio);
 }
 
+.campo select {
+  font-family: var(--fuente-cuerpo);
+  font-size: 0.9375rem;
+  padding: 0.7rem 2.25rem 0.7rem 0.875rem;
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--radio-sm);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a9c0b2' stroke-width='1.5'%3E%3Cpath d='M4 6l4 4 4-4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      no-repeat right 0.8rem center,
+    var(--verde-900);
+  color: var(--texto-alto);
+  appearance: none;
+  cursor: pointer;
+  transition: border-color var(--transicion-rapida), box-shadow var(--transicion-rapida);
+}
+
+.campo select:focus {
+  outline: none;
+  border-color: var(--dorado-500);
+  box-shadow: 0 0 0 3px rgba(201, 162, 75, 0.18);
+}
+
 .campo input {
   font-family: var(--fuente-cuerpo);
   font-size: 0.9375rem;
@@ -332,7 +364,9 @@ a {
 
 .pagina-panel {
   min-height: 100vh;
-  background: var(--verde-900);
+  display: flex;
+  flex-direction: column;
+  background: var(--crema-50);
 }
 
 .encabezado-panel {
@@ -386,11 +420,163 @@ a {
   color: var(--texto-alto);
 }
 
+.panel-cuerpo {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+}
+
+.panel-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  padding: 2rem 1.25rem;
+  background: var(--verde-900);
+  border-right: 1px solid var(--linea);
+}
+
+.panel-sidebar__titulo {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--texto-tenue);
+  margin-bottom: 1rem;
+}
+
+.panel-sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.panel-sidebar__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radio-sm);
+  border-left: 3px solid transparent;
+  font-size: 0.9375rem;
+  color: var(--texto-tenue);
+}
+
+.panel-sidebar__item--activo {
+  background: rgba(201, 162, 75, 0.12);
+  border-left-color: var(--dorado-500);
+  color: var(--texto-alto);
+  font-weight: 500;
+}
+
+.panel-sidebar__etiqueta {
+  font-size: 0.6875rem;
+  color: var(--texto-tenue);
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--radio-pastilla);
+  padding: 0.125rem 0.5rem;
+  white-space: nowrap;
+}
+
 .contenido-panel {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: clamp(2.5rem, 6vw, 4.5rem) 1.75rem;
+  flex: 1;
+  min-width: 0;
+  background: var(--crema-50);
+  color: var(--texto-crema-medio);
+  padding: clamp(2rem, 5vw, 3.5rem) clamp(1.5rem, 4vw, 3rem);
   animation: aparecer var(--transicion-suave) both;
+}
+
+.contenido-panel h1,
+.contenido-panel h2,
+.contenido-panel h3 {
+  color: var(--texto-crema-alto);
+}
+
+.contenido-panel p {
+  color: var(--texto-crema-medio);
+}
+
+.contenido-panel .campo label {
+  color: var(--texto-crema-tenue);
+}
+
+.contenido-panel .campo select {
+  border-color: var(--crema-linea);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234d6357' stroke-width='1.5'%3E%3Cpath d='M4 6l4 4 4-4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      no-repeat right 0.8rem center,
+    var(--crema-100);
+  color: var(--texto-crema-alto);
+}
+
+.contenido-panel .campo select:focus {
+  border-color: var(--dorado-700);
+  box-shadow: 0 0 0 3px rgba(150, 116, 42, 0.16);
+}
+
+.contenido-panel .mensaje-error {
+  color: var(--rosa-700);
+}
+
+@media (max-width: 640px) {
+  .encabezado-panel {
+    padding: 1rem 1.25rem;
+    gap: 0.75rem;
+  }
+
+  .encabezado-panel__marca span {
+    display: none;
+  }
+
+  .encabezado-panel h1 {
+    font-size: 1.0625rem;
+  }
+
+  .encabezado-panel__usuario {
+    gap: 0.625rem;
+  }
+
+  .encabezado-panel__nombre {
+    display: none;
+  }
+
+  .boton--fantasma {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+  }
+
+  .panel-cuerpo {
+    flex-direction: column;
+  }
+
+  .panel-sidebar {
+    width: auto;
+    padding: 1rem 1.25rem;
+    border-right: none;
+    border-bottom: 1px solid var(--linea);
+  }
+
+  .panel-sidebar__titulo {
+    display: none;
+  }
+
+  .panel-sidebar ul {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 0.5rem;
+  }
+
+  .panel-sidebar__item {
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+  }
+
+  .panel-sidebar__item--activo {
+    border-left-color: transparent;
+    border-bottom-color: var(--dorado-500);
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -404,9 +590,10 @@ a {
   gap: 1.25rem;
   max-width: 32rem;
   padding: 2.5rem;
-  background: var(--verde-800);
-  border: 1px solid var(--linea);
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
   border-radius: var(--radio-md);
+  box-shadow: 0 16px 32px -24px rgba(18, 33, 25, 0.35);
 }
 
 .estado-vacio__icono {
@@ -416,8 +603,8 @@ a {
   align-items: center;
   justify-content: center;
   border-radius: var(--radio-sm);
-  background: rgba(201, 162, 75, 0.12);
-  color: var(--dorado-400);
+  background: rgba(150, 116, 42, 0.14);
+  color: var(--dorado-700);
 }
 
 .estado-vacio__icono svg {
@@ -431,6 +618,62 @@ a {
 
 .estado-vacio p {
   font-size: 0.9375rem;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Disponibilidad (consulta del estudiante)                               */
+/* ---------------------------------------------------------------------- */
+
+.texto-cargando {
+  font-size: 0.9375rem;
+}
+
+.disponibilidad {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.disponibilidad__filtro {
+  max-width: 16rem;
+}
+
+.disponibilidad__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.tarjeta-disponibilidad {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 1.25rem 1.375rem;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-left: 3px solid var(--dorado-700);
+  border-radius: var(--radio-md);
+  box-shadow: 0 10px 24px -20px rgba(18, 33, 25, 0.4);
+}
+
+.tarjeta-disponibilidad__materia {
+  font-family: var(--fuente-titular);
+  font-size: 1.0625rem;
+  color: var(--texto-crema-alto);
+}
+
+.tarjeta-disponibilidad__tutor {
+  font-size: 0.875rem;
+  color: var(--texto-crema-medio);
+}
+
+.tarjeta-disponibilidad__horario {
+  font-size: 0.875rem;
+  color: var(--verde-600);
+  margin-top: 0.375rem;
 }
 
 .pagina-centrada {

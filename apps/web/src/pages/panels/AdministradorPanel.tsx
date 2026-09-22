@@ -3,7 +3,10 @@ import { EstadoVacio } from "../../components/EstadoVacio";
 
 export function AdministradorPanel() {
   return (
-    <PanelLayout titulo="Panel del administrador">
+    <PanelLayout
+      titulo="Panel del administrador"
+      categorias={[{ etiqueta: "Cuentas de usuario", seleccionada: true, disponible: false }]}
+    >
       <EstadoVacio
         icono={
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

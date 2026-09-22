@@ -3,7 +3,13 @@ import { EstadoVacio } from "../../components/EstadoVacio";
 
 export function CoordinadorPanel() {
   return (
-    <PanelLayout titulo="Panel del coordinador académico">
+    <PanelLayout
+      titulo="Panel del coordinador académico"
+      categorias={[
+        { etiqueta: "Tutores", seleccionada: true, disponible: false },
+        { etiqueta: "Histórico de tutorías", disponible: false },
+      ]}
+    >
       <EstadoVacio
         icono={
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

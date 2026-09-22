@@ -27,8 +27,24 @@ model Usuario {
   creadoPorId  String?    @map("creado_por_id") @db.Uuid
   creadoPor    Usuario?   @relation("UsuarioCreadoPor", fields: [creadoPorId], references: [id])
   creados      Usuario[]  @relation("UsuarioCreadoPor")
+  disponibilidades Disponibilidad[] @relation("TutorDisponibilidad")
   creadoEn     DateTime   @default(now()) @map("creado_en")
   actualizadoEn DateTime  @updatedAt @map("actualizado_en")
 
   @@map("usuario")
+}
+
+/// Franja de disponibilidad publicada por un tutor (Entrega 2, alcance de solo consulta: RF-004).
+/// La publicacion/edicion por el propio tutor y la reserva quedan para entregas posteriores.
+model Disponibilidad {
+  id          String   @id @default(uuid()) @db.Uuid
+  tutorId     String   @map("tutor_id") @db.Uuid
+  tutor       Usuario  @relation("TutorDisponibilidad", fields: [tutorId], references: [id])
+  materia     String
+  fechaInicio DateTime @map("fecha_inicio")
+  fechaFin    DateTime @map("fecha_fin")
+  creadoEn    DateTime @default(now()) @map("creado_en")
+
+  @@index([fechaInicio])
+  @@map("disponibilidad")
 }

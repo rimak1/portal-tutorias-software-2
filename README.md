@@ -15,7 +15,7 @@ Este repositorio se desarrolla en 3 entregas incrementales:
 | Entrega | Alcance | Estado |
 | --- | --- | --- |
 | 1 | Acceso y autenticación (login, RBAC, recuperación de contraseña) | ✅ Completa |
-| 2 | Disponibilidad del tutor y consulta de disponibilidad | ⏳ Pendiente |
+| 2 | Disponibilidad del tutor y consulta de disponibilidad | 🟡 Parcial: el estudiante ya consulta la disponibilidad publicada (RF-004); la publicación/edición por el propio tutor queda pendiente |
 | 3 | Reserva de citas (con control de concurrencia) | ⏳ Pendiente |
 
 ## Estructura del repositorio
