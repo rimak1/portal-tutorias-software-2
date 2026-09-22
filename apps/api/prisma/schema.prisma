@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RolUsuario {
+  ESTUDIANTE
+  TUTOR
+  ADMINISTRADOR
+  COORDINADOR
+
+  @@map("rol_usuario")
+}
+
+/// Cuenta de acceso de los cuatro roles del Portal (Entrega 1: RF-001 a RF-003, RN-001).
+model Usuario {
+  id           String     @id @default(uuid()) @db.Uuid
+  correo       String     @unique
+  passwordHash String     @map("password_hash")
+  nombre       String
+  rol          RolUsuario
+  activo       Boolean    @default(true)
+  creadoPorId  String?    @map("creado_por_id") @db.Uuid
+  creadoPor    Usuario?   @relation("UsuarioCreadoPor", fields: [creadoPorId], references: [id])
+  creados      Usuario[]  @relation("UsuarioCreadoPor")
+  creadoEn     DateTime   @default(now()) @map("creado_en")
+  actualizadoEn DateTime  @updatedAt @map("actualizado_en")
+
+  @@map("usuario")
+}

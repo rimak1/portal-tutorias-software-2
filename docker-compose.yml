@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: portal
+      POSTGRES_PASSWORD: portal
+      POSTGRES_DB: portal_tutorias
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal -d portal_tutorias"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://portal:portal@db:5432/portal_tutorias?schema=public
+      PORT: 3000
+      HOST: 0.0.0.0
+      NODE_ENV: production
+      SESSION_SECRET: ${SESSION_SECRET:?define SESSION_SECRET en .env}
+      SESSION_COOKIE_NAME: portal_session
+      SESSION_TTL_HORAS: 12
+      RESET_TOKEN_SECRET: ${RESET_TOKEN_SECRET:?define RESET_TOKEN_SECRET en .env}
+      RESET_TOKEN_TTL_MINUTOS: 30
+      EMAIL_ADAPTER: ${EMAIL_ADAPTER:-mock}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-Portal de Tutorias <no-responder@example.edu.co>}
+      WEB_APP_URL: ${WEB_APP_URL:-http://localhost:8080}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/salud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  db_data:
