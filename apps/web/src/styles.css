@@ -42,8 +42,8 @@
 
   --sombra-panel: 0 24px 60px -24px rgba(2, 10, 6, 0.65);
 
-  --fuente-titular: "Fraunces", "Iowan Old Style", Georgia, serif;
-  --fuente-cuerpo: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fuente-titular: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fuente-cuerpo: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --transicion-rapida: 160ms cubic-bezier(0.4, 0, 0.2, 1);
   --transicion-suave: 320ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -684,6 +684,444 @@ a {
   padding: 1rem;
   color: var(--texto-medio);
   font-size: 0.9375rem;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Navegación del panel (categorías navegables)                           */
+/* ---------------------------------------------------------------------- */
+
+.panel-sidebar__item--navegable {
+  padding: 0;
+}
+
+.panel-sidebar__boton {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radio-sm);
+  cursor: pointer;
+  transition: color var(--transicion-rapida);
+}
+
+.panel-sidebar__boton:hover {
+  color: var(--texto-alto);
+}
+
+.panel-sidebar__boton:focus-visible {
+  outline: 2px solid var(--dorado-400);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Botones y campos sobre la superficie crema del panel                   */
+/* ---------------------------------------------------------------------- */
+
+.contenido-panel .boton {
+  margin-top: 0;
+  padding: 0.55rem 1.15rem;
+  font-size: 0.875rem;
+}
+
+.boton--secundario {
+  background: transparent;
+  color: var(--texto-crema-alto);
+  border: 1px solid var(--crema-linea);
+  box-shadow: inset 0 0 0 1px rgba(18, 33, 25, 0.06);
+}
+
+.boton--secundario:hover:not(:disabled) {
+  border-color: var(--dorado-700);
+  color: var(--dorado-700);
+}
+
+.boton--secundario:disabled,
+.boton--peligro:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.boton--peligro {
+  background: var(--rosa-700);
+  color: #fff;
+}
+
+.boton--peligro:hover:not(:disabled) {
+  background: #8f3039;
+}
+
+.contenido-panel .campo input,
+.contenido-panel .campo textarea {
+  font-family: var(--fuente-cuerpo);
+  font-size: 0.9375rem;
+  padding: 0.7rem 0.875rem;
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-sm);
+  background: var(--crema-100);
+  color: var(--texto-crema-alto);
+  transition: border-color var(--transicion-rapida), box-shadow var(--transicion-rapida);
+}
+
+.contenido-panel .campo textarea {
+  resize: vertical;
+}
+
+.contenido-panel .campo input:focus,
+.contenido-panel .campo textarea:focus {
+  outline: none;
+  border-color: var(--dorado-700);
+  box-shadow: 0 0 0 3px rgba(150, 116, 42, 0.16);
+}
+
+.contenido-panel h2 {
+  font-size: 1.25rem;
+}
+
+.contenido-panel .mensaje-exito {
+  color: var(--verde-500);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Reserva en tres pasos                                                   */
+/* ---------------------------------------------------------------------- */
+
+.reserva {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.reserva__seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.reserva__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pasos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.paso {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  color: var(--texto-crema-tenue);
+}
+
+.paso__numero {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--crema-linea);
+  background: var(--crema-100);
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.paso--actual {
+  color: var(--texto-crema-alto);
+  font-weight: 600;
+}
+
+.paso--actual .paso__numero {
+  background: var(--dorado-500);
+  border-color: var(--dorado-500);
+  color: var(--verde-950);
+}
+
+.paso--hecho .paso__numero {
+  background: var(--verde-600);
+  border-color: var(--verde-600);
+  color: var(--crema-100);
+}
+
+.tarjeta-opcion {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 1.25rem 1.375rem;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-left: 3px solid var(--dorado-700);
+  border-radius: var(--radio-md);
+  box-shadow: 0 10px 24px -20px rgba(18, 33, 25, 0.4);
+  cursor: pointer;
+  transition: transform var(--transicion-rapida), box-shadow var(--transicion-rapida);
+}
+
+.tarjeta-opcion:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 28px -18px rgba(18, 33, 25, 0.5);
+}
+
+.tarjeta-opcion:focus-visible {
+  outline: 2px solid var(--dorado-700);
+  outline-offset: 2px;
+}
+
+.tarjeta-opcion__titulo {
+  font-family: var(--fuente-titular);
+  font-size: 1.0625rem;
+  color: var(--texto-crema-alto);
+}
+
+.tarjeta-opcion__detalle {
+  font-size: 0.875rem;
+  color: var(--texto-crema-medio);
+}
+
+.tarjeta-opcion__horario {
+  font-size: 0.875rem;
+  color: var(--verde-600);
+  margin-top: 0.375rem;
+}
+
+.resumen {
+  margin: 0;
+  display: grid;
+  gap: 0.875rem;
+  max-width: 28rem;
+  padding: 1.5rem;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-md);
+}
+
+.resumen div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.resumen dt {
+  font-size: 0.75rem;
+  color: var(--texto-crema-tenue);
+}
+
+.resumen dd {
+  margin: 0;
+  color: var(--texto-crema-alto);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Citas, franjas e insignias de estado                                    */
+/* ---------------------------------------------------------------------- */
+
+.lista-citas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.lista-citas__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.tarjeta-cita {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem 1.375rem;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-md);
+  box-shadow: 0 10px 24px -20px rgba(18, 33, 25, 0.4);
+}
+
+.tarjeta-cita__cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tarjeta-cita__materia {
+  font-family: var(--fuente-titular);
+  font-size: 1.0625rem;
+  color: var(--texto-crema-alto);
+}
+
+.tarjeta-cita__persona {
+  font-size: 0.875rem;
+  color: var(--texto-crema-medio);
+}
+
+.tarjeta-cita__horario {
+  font-size: 0.875rem;
+  color: var(--verde-600);
+}
+
+.tarjeta-cita__aviso,
+.tarjeta-cita__motivo {
+  font-size: 0.875rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radio-sm);
+  background: rgba(201, 162, 75, 0.14);
+}
+
+.tarjeta-cita__motivo {
+  background: rgba(216, 99, 106, 0.12);
+}
+
+.tarjeta-cita__nota {
+  font-size: 0.8125rem;
+  color: var(--texto-crema-medio);
+}
+
+.tarjeta-cita__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+}
+
+.panel-accion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  width: 100%;
+  padding: 0.875rem;
+  background: var(--crema-50);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-sm);
+}
+
+.insignia {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radio-pastilla);
+  white-space: nowrap;
+}
+
+.insignia--pendiente,
+.insignia--franja-reservada {
+  background: rgba(201, 162, 75, 0.2);
+  color: var(--dorado-700);
+}
+
+.insignia--aprobada,
+.insignia--franja-libre {
+  background: rgba(47, 107, 79, 0.16);
+  color: var(--verde-600);
+}
+
+.insignia--rechazada {
+  background: rgba(216, 99, 106, 0.16);
+  color: var(--rosa-700);
+}
+
+.insignia--cancelada {
+  background: rgba(77, 99, 87, 0.14);
+  color: var(--texto-crema-medio);
+}
+
+.insignia--finalizada {
+  background: var(--verde-700);
+  color: var(--crema-100);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Formularios del tutor                                                   */
+/* ---------------------------------------------------------------------- */
+
+.disponibilidad-tutor {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.disponibilidad-tutor > section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.formulario-franja,
+.formulario-materias,
+.aviso-previo {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 44rem;
+  padding: 1.75rem;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-md);
+  box-shadow: 0 16px 32px -24px rgba(18, 33, 25, 0.35);
+}
+
+.aviso-previo {
+  align-items: flex-start;
+}
+
+.formulario-franja__campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.opciones-materia {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.opciones-materia legend {
+  font-size: 0.8125rem;
+  color: var(--texto-crema-tenue);
+  margin-bottom: 0.75rem;
+  padding: 0;
+}
+
+.opcion-materia {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-sm);
+  background: var(--crema-50);
+  color: var(--texto-crema-alto);
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.opcion-materia input {
+  accent-color: var(--verde-600);
 }
 
 /* ---------------------------------------------------------------------- */

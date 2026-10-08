@@ -28,23 +28,133 @@ model Usuario {
   creadoPor    Usuario?   @relation("UsuarioCreadoPor", fields: [creadoPorId], references: [id])
   creados      Usuario[]  @relation("UsuarioCreadoPor")
   disponibilidades Disponibilidad[] @relation("TutorDisponibilidad")
+  materias     TutorMateria[]
+  citas        Cita[]               @relation("EstudianteCita")
+  historial    HistorialEstadoCita[]
   creadoEn     DateTime   @default(now()) @map("creado_en")
   actualizadoEn DateTime  @updatedAt @map("actualizado_en")
 
   @@map("usuario")
 }
 
-/// Franja de disponibilidad publicada por un tutor (Entrega 2, alcance de solo consulta: RF-004).
-/// La publicacion/edicion por el propio tutor y la reserva quedan para entregas posteriores.
+enum EstadoFranja {
+  LIBRE
+  RESERVADA
+
+  @@map("estado_franja")
+}
+
+enum EstadoCita {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+  CANCELADA
+  FINALIZADA
+
+  @@map("estado_cita")
+}
+
+enum EstadoPropuesta {
+  PENDIENTE
+  ACEPTADA
+  RECHAZADA
+
+  @@map("estado_propuesta")
+}
+
+/// Catalogo de materias o areas de tutoria (SWR-20).
+model Materia {
+  id               String           @id @default(uuid()) @db.Uuid
+  nombre           String           @unique
+  tutores          TutorMateria[]
+  disponibilidades Disponibilidad[]
+
+  @@map("materia")
+}
+
+/// Materias que un tutor puede tutorar (SWR-20).
+model TutorMateria {
+  tutorId   String  @map("tutor_id") @db.Uuid
+  tutor     Usuario @relation(fields: [tutorId], references: [id])
+  materiaId String  @map("materia_id") @db.Uuid
+  materia   Materia @relation(fields: [materiaId], references: [id])
+
+  @@id([tutorId, materiaId])
+  @@map("tutor_materia")
+}
+
+/// Franja de disponibilidad publicada por un tutor (SWR-03 a SWR-05).
+/// Restricciones que Prisma no expresa (exclusion de traslapes y CHECK de horas)
+/// viven en la migracion SQL. La eliminacion es logica para conservar el historial de citas.
 model Disponibilidad {
-  id          String   @id @default(uuid()) @db.Uuid
-  tutorId     String   @map("tutor_id") @db.Uuid
-  tutor       Usuario  @relation("TutorDisponibilidad", fields: [tutorId], references: [id])
-  materia     String
-  fechaInicio DateTime @map("fecha_inicio")
-  fechaFin    DateTime @map("fecha_fin")
-  creadoEn    DateTime @default(now()) @map("creado_en")
+  id           String       @id @default(uuid()) @db.Uuid
+  tutorId      String       @map("tutor_id") @db.Uuid
+  tutor        Usuario      @relation("TutorDisponibilidad", fields: [tutorId], references: [id])
+  materiaId    String       @map("materia_id") @db.Uuid
+  materia      Materia      @relation(fields: [materiaId], references: [id])
+  fechaInicio  DateTime     @map("fecha_inicio") @db.Timestamptz(3)
+  fechaFin     DateTime     @map("fecha_fin") @db.Timestamptz(3)
+  estado       EstadoFranja @default(LIBRE)
+  eliminadaEn  DateTime?    @map("eliminada_en") @db.Timestamptz(3)
+  creadoEn     DateTime     @default(now()) @map("creado_en")
+  citas        Cita[]
+  propuestasOriginal PropuestaReprogramacion[] @relation("FranjaOriginal")
+  propuestasNueva    PropuestaReprogramacion[] @relation("FranjaNueva")
 
   @@index([fechaInicio])
+  @@index([tutorId, fechaInicio])
   @@map("disponibilidad")
+}
+
+/// Solicitud de tutoria y su ciclo de vida (SWR-08 a SWR-14, SWR-19, SWR-21, SWR-22).
+/// El indice unico parcial sobre franja_id (estados activos) vive en la migracion SQL.
+model Cita {
+  id                String     @id @default(uuid()) @db.Uuid
+  estudianteId      String     @map("estudiante_id") @db.Uuid
+  estudiante        Usuario    @relation("EstudianteCita", fields: [estudianteId], references: [id])
+  franjaId          String     @map("franja_id") @db.Uuid
+  franja            Disponibilidad @relation(fields: [franjaId], references: [id], onDelete: Restrict)
+  estado            EstadoCita @default(PENDIENTE)
+  motivoRechazo     String?    @map("motivo_rechazo")
+  creadoEn          DateTime   @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn     DateTime   @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  fechaFinalizacion DateTime?  @map("fecha_finalizacion") @db.Timestamptz(3)
+  propuestas        PropuestaReprogramacion[]
+  historial         HistorialEstadoCita[]
+
+  @@index([estudianteId, estado])
+  @@index([estado, fechaFinalizacion])
+  @@map("cita")
+}
+
+/// Propuesta del tutor para mover una cita Pendiente a otra de sus franjas libres (SWR-11).
+model PropuestaReprogramacion {
+  id              String          @id @default(uuid()) @db.Uuid
+  citaId          String          @map("cita_id") @db.Uuid
+  cita            Cita            @relation(fields: [citaId], references: [id])
+  franjaOriginalId String         @map("franja_original_id") @db.Uuid
+  franjaOriginal  Disponibilidad  @relation("FranjaOriginal", fields: [franjaOriginalId], references: [id])
+  franjaNuevaId   String          @map("franja_nueva_id") @db.Uuid
+  franjaNueva     Disponibilidad  @relation("FranjaNueva", fields: [franjaNuevaId], references: [id])
+  estado          EstadoPropuesta @default(PENDIENTE)
+  creadoEn        DateTime        @default(now()) @map("creado_en") @db.Timestamptz(3)
+  respondidoEn    DateTime?       @map("respondido_en") @db.Timestamptz(3)
+
+  @@map("propuesta_reprogramacion")
+}
+
+/// Bitacora de cada cambio de estado de una cita, con su actor (BR-04, trazabilidad).
+model HistorialEstadoCita {
+  id             String      @id @default(uuid()) @db.Uuid
+  citaId         String      @map("cita_id") @db.Uuid
+  cita           Cita        @relation(fields: [citaId], references: [id])
+  estadoAnterior EstadoCita? @map("estado_anterior")
+  estadoNuevo    EstadoCita  @map("estado_nuevo")
+  actorId        String      @map("actor_id") @db.Uuid
+  actor          Usuario     @relation(fields: [actorId], references: [id])
+  detalle        String?
+  creadoEn       DateTime    @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  @@index([citaId, creadoEn])
+  @@map("historial_estado_cita")
 }

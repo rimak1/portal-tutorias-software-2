@@ -7,6 +7,8 @@ export interface CategoriaPanel {
   seleccionada?: boolean;
   /** false cuando la categoria todavia no tiene una funcion real detras (llega en otra entrega). */
   disponible?: boolean;
+  /** Si se indica, la categoria es navegable y selecciona su seccion al hacer clic. */
+  onSeleccionar?: () => void;
 }
 
 export function PanelLayout({
@@ -52,13 +54,30 @@ export function PanelLayout({
             {categorias.map((categoria) => (
               <li
                 key={categoria.etiqueta}
-                className={
-                  categoria.seleccionada ? "panel-sidebar__item panel-sidebar__item--activo" : "panel-sidebar__item"
-                }
+                className={[
+                  "panel-sidebar__item",
+                  categoria.seleccionada ? "panel-sidebar__item--activo" : "",
+                  categoria.onSeleccionar ? "panel-sidebar__item--navegable" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               >
-                <span>{categoria.etiqueta}</span>
-                {categoria.disponible === false && (
-                  <span className="panel-sidebar__etiqueta">Próximamente</span>
+                {categoria.onSeleccionar ? (
+                  <button
+                    type="button"
+                    className="panel-sidebar__boton"
+                    aria-current={categoria.seleccionada ? "page" : undefined}
+                    onClick={categoria.onSeleccionar}
+                  >
+                    {categoria.etiqueta}
+                  </button>
+                ) : (
+                  <>
+                    <span>{categoria.etiqueta}</span>
+                    {categoria.disponible === false && (
+                      <span className="panel-sidebar__etiqueta">Próximamente</span>
+                    )}
+                  </>
                 )}
               </li>
             ))}

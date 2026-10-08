@@ -15,8 +15,11 @@ Este repositorio se desarrolla en 3 entregas incrementales:
 | Entrega | Alcance | Estado |
 | --- | --- | --- |
 | 1 | Acceso y autenticación (login, RBAC, recuperación de contraseña) | ✅ Completa |
-| 2 | Disponibilidad del tutor y consulta de disponibilidad | 🟡 Parcial: el estudiante ya consulta la disponibilidad publicada (RF-004); la publicación/edición por el propio tutor queda pendiente |
-| 3 | Reserva de citas (con control de concurrencia) | ⏳ Pendiente |
+| 2 | Materias del tutor, gestión de franjas (crear, modificar, eliminar, sin traslapes) y consulta de disponibilidad con filtros | ✅ Completa |
+| 3 | Reserva de citas con control de concurrencia, atención de solicitudes (aprobar, rechazar con motivo, reprogramar), finalización y cancelación | ✅ Completa |
+
+Funcionalidades del Plan de Requisitos cubiertas: F-01, F-02, F-03, F-04, F-05, F-06, F-10 y F-11.
+Pendientes: notificaciones (F-07), administración de usuarios (F-08) e histórico de tutorías (F-09).
 
 ## Estructura del repositorio
 

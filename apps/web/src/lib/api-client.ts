@@ -8,11 +8,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // Fastify rechaza un Content-Type: application/json con cuerpo vacio, asi que
+  // la cabecera solo se envia cuando realmente hay un cuerpo.
+  const tieneCuerpo = options.body !== undefined;
   const response = await fetch(`/api${path}`, {
     ...options,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(tieneCuerpo ? { "Content-Type": "application/json" } : {}),
       ...options.headers,
     },
   });
@@ -27,10 +30,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+// Una peticion con cuerpo sin payload (p. ej. logout o aprobar) se envia como "{}".
+const conCuerpo = (metodo: string) => <T>(path: string, payload?: unknown) =>
+  request<T>(path, { method: metodo, body: JSON.stringify(payload ?? {}) });
+
 export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: "GET" }),
-  // Fastify rechaza un Content-Type: application/json con cuerpo vacio,
-  // por eso una peticion sin payload (p. ej. logout) se envia como "{}".
-  post: <T>(path: string, payload?: unknown) =>
-    request<T>(path, { method: "POST", body: JSON.stringify(payload ?? {}) }),
+  post: conCuerpo("POST"),
+  put: conCuerpo("PUT"),
+  patch: conCuerpo("PATCH"),
+  delete: <T = null>(path: string) => request<T>(path, { method: "DELETE" }),
 };
