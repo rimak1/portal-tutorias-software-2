@@ -1,11 +1,10 @@
-import { useState } from "react";
-import type { Cita } from "@portal-tutorias/shared";
+import { Fragment, useState } from "react";
 import { EstadoVacio } from "../../../components/EstadoVacio";
 import { TarjetaCita } from "../../../components/TarjetaCita";
-import { apiClient } from "../../../lib/api-client";
-import { mensajeDeError, useDatos } from "../../../lib/use-datos";
-
-type Accion = "cancelar" | "propuesta/aceptar" | "propuesta/rechazar";
+import { EJECUTORES, ETIQUETAS, accionesDisponibles, claseDeBoton, type AccionSimple } from "../../../lib/acciones-cita";
+import { citasApi } from "../../../lib/api/citas";
+import { useAccionesDeCita } from "../../../lib/use-acciones-cita";
+import { useDatos } from "../../../lib/use-datos";
 
 const ICONO_LISTA = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -18,26 +17,20 @@ const ICONO_LISTA = (
 
 /** SWR-14, SWR-21 y respuesta a propuestas de reprogramacion: seguimiento de las citas del estudiante. */
 export function MisCitasEstudiante({ aviso }: { aviso?: string }) {
-  const { datos, error, recargar } = useDatos<{ citas: Cita[] }>("/citas");
-  const [mensaje, setMensaje] = useState<string | null>(null);
+  const { datos: citas, error, recargar } = useDatos(citasApi.listar);
+  const { mensaje, procesando, ejecutar } = useAccionesDeCita(recargar);
   const [confirmando, setConfirmando] = useState<string | null>(null);
-  const [procesando, setProcesando] = useState<string | null>(null);
 
-  async function ejecutar(citaId: string, accion: Accion) {
-    setProcesando(citaId);
-    setMensaje(null);
-    try {
-      await apiClient.post(`/citas/${citaId}/${accion}`);
-      setConfirmando(null);
-    } catch (err) {
-      setMensaje(mensajeDeError(err, "No fue posible completar la acción."));
-    } finally {
-      setProcesando(null);
-      await recargar();
+  async function ejecutarSimple(citaId: string, accion: AccionSimple) {
+    // Cancelar pide confirmacion en linea antes de ejecutarse.
+    if (accion === "cancelar" && confirmando !== citaId) {
+      setConfirmando(citaId);
+      return;
     }
+    if (await ejecutar(citaId, () => EJECUTORES[accion](citaId))) setConfirmando(null);
   }
 
-  if (error && !datos) {
+  if (error && !citas) {
     return (
       <p role="alert" className="mensaje-error">
         {error}
@@ -45,7 +38,7 @@ export function MisCitasEstudiante({ aviso }: { aviso?: string }) {
     );
   }
 
-  if (!datos) {
+  if (!citas) {
     return <p className="texto-cargando">Cargando tus tutorías...</p>;
   }
 
@@ -58,7 +51,7 @@ export function MisCitasEstudiante({ aviso }: { aviso?: string }) {
         </p>
       )}
 
-      {datos.citas.length === 0 ? (
+      {citas.length === 0 ? (
         <EstadoVacio
           icono={ICONO_LISTA}
           titulo="Aún no tienes tutorías"
@@ -66,50 +59,29 @@ export function MisCitasEstudiante({ aviso }: { aviso?: string }) {
         />
       ) : (
         <ul className="lista-citas__items">
-          {datos.citas.map((cita) => (
+          {citas.map((cita) => (
             <TarjetaCita key={cita.id} cita={cita} vista="estudiante">
-              {cita.propuestaPendiente ? (
-                <>
-                  <button
-                    type="button"
-                    className="boton boton--primario"
-                    disabled={procesando === cita.id}
-                    onClick={() => ejecutar(cita.id, "propuesta/aceptar")}
-                  >
-                    Aceptar propuesta
+              {accionesDisponibles(cita, "estudiante").map((accion) => {
+                const simple = accion as AccionSimple;
+                if (accion === "cancelar" && confirmando === cita.id) {
+                  return (
+                    <Fragment key={accion}>
+                      <span className="tarjeta-cita__nota">¿Cancelar esta tutoría? La franja quedará libre para otros.</span>
+                      <button type="button" className="boton boton--peligro" disabled={procesando === cita.id} onClick={() => ejecutarSimple(cita.id, simple)}>
+                        Sí, cancelar
+                      </button>
+                      <button type="button" className="boton boton--secundario" onClick={() => setConfirmando(null)}>
+                        Conservar
+                      </button>
+                    </Fragment>
+                  );
+                }
+                return (
+                  <button key={accion} type="button" className={claseDeBoton(accion)} disabled={procesando === cita.id} onClick={() => ejecutarSimple(cita.id, simple)}>
+                    {ETIQUETAS[accion]}
                   </button>
-                  <button
-                    type="button"
-                    className="boton boton--secundario"
-                    disabled={procesando === cita.id}
-                    onClick={() => ejecutar(cita.id, "propuesta/rechazar")}
-                  >
-                    Rechazar propuesta
-                  </button>
-                </>
-              ) : (
-                (cita.estado === "PENDIENTE" || cita.estado === "APROBADA") &&
-                (confirmando === cita.id ? (
-                  <>
-                    <span className="tarjeta-cita__nota">¿Cancelar esta tutoría? La franja quedará libre para otros.</span>
-                    <button
-                      type="button"
-                      className="boton boton--peligro"
-                      disabled={procesando === cita.id}
-                      onClick={() => ejecutar(cita.id, "cancelar")}
-                    >
-                      Sí, cancelar
-                    </button>
-                    <button type="button" className="boton boton--secundario" onClick={() => setConfirmando(null)}>
-                      Conservar
-                    </button>
-                  </>
-                ) : (
-                  <button type="button" className="boton boton--secundario" onClick={() => setConfirmando(cita.id)}>
-                    Cancelar tutoría
-                  </button>
-                ))
-              )}
+                );
+              })}
             </TarjetaCita>
           ))}
         </ul>

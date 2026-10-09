@@ -6,27 +6,24 @@ import {
 } from "@portal-tutorias/shared";
 import type { Env } from "../../config/env.js";
 import {
-  AuthService,
+  type AuthService,
   CredencialesInvalidasError,
   CuentaDesactivadaError,
   TokenRestablecimientoInvalidoError,
 } from "./auth.service.js";
-import type { EmailSender } from "../email/email-sender.js";
 
 const MENSAJE_CREDENCIALES_INVALIDAS = "Correo o contrasena incorrectos.";
 
 export interface AuthRoutesOptions {
   env: Env;
-  emailSender: EmailSender;
+  auth: AuthService;
 }
 
 /**
  * RF-001 a RF-003: inicio y cierre de sesion, solicitud y aplicacion del
  * restablecimiento de contrasena. Rutas publicas salvo /auth/logout.
  */
-const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (fastify, { env, emailSender }) => {
-  const authService = new AuthService(fastify.prisma, env, emailSender);
-
+const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (fastify, { env, auth: authService }) => {
   fastify.post("/auth/login", async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {

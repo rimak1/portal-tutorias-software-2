@@ -1,8 +1,8 @@
-import type { PrismaClient } from "@prisma/client";
 import type { Env } from "../../config/env.js";
 import { hashPassword, verifyPassword } from "../../lib/hash.js";
 import { passwordFingerprint, signResetToken, signSessionToken, verifyResetToken } from "../../lib/token.js";
 import type { EmailSender } from "../email/email-sender.js";
+import type { UsuariosRepository } from "../usuarios/usuarios.repository.js";
 
 export class CredencialesInvalidasError extends Error {}
 export class CuentaDesactivadaError extends Error {}
@@ -10,14 +10,14 @@ export class TokenRestablecimientoInvalidoError extends Error {}
 
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly usuarios: UsuariosRepository,
     private readonly env: Env,
     private readonly emailSender: EmailSender,
   ) {}
 
   /** RF-001: inicia sesion y emite el token que viaja en la cookie de sesion. */
   async login(correo: string, password: string) {
-    const usuario = await this.prisma.usuario.findUnique({ where: { correo } });
+    const usuario = await this.usuarios.buscarPorCorreo(correo);
 
     if (!usuario) {
       throw new CredencialesInvalidasError("Correo o contrasena incorrectos.");
@@ -49,7 +49,7 @@ export class AuthService {
    * La respuesta nunca revela si el correo esta registrado.
    */
   async solicitarRecuperacion(correo: string): Promise<void> {
-    const usuario = await this.prisma.usuario.findUnique({ where: { correo } });
+    const usuario = await this.usuarios.buscarPorCorreo(correo);
     if (!usuario || !usuario.activo) {
       return;
     }
@@ -66,7 +66,7 @@ export class AuthService {
       throw new TokenRestablecimientoInvalidoError("El enlace no es valido o vencio.");
     }
 
-    const usuario = await this.prisma.usuario.findUnique({ where: { id: payload.sub } });
+    const usuario = await this.usuarios.buscarPorId(payload.sub);
     if (!usuario || !usuario.activo) {
       throw new TokenRestablecimientoInvalidoError("El enlace no es valido o vencio.");
     }
@@ -76,10 +76,6 @@ export class AuthService {
       throw new TokenRestablecimientoInvalidoError("El enlace ya fue utilizado.");
     }
 
-    const nuevoHash = await hashPassword(nuevaPassword);
-    await this.prisma.usuario.update({
-      where: { id: usuario.id },
-      data: { passwordHash: nuevoHash },
-    });
+    await this.usuarios.actualizarPasswordHash(usuario.id, await hashPassword(nuevaPassword));
   }
 }

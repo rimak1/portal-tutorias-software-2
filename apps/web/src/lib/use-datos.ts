@@ -1,19 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
-import { apiClient, ApiError } from "./api-client";
+import { ApiError } from "./api-client";
 
 export function mensajeDeError(err: unknown, porDefecto: string): string {
   return err instanceof ApiError ? err.message : porDefecto;
 }
 
-/** Carga un recurso de la API al montar (y cuando cambia la ruta) y permite volver a pedirlo. */
-export function useDatos<T>(path: string) {
+/**
+ * Custom hook: carga un recurso al montar (y cuando cambia `cargar`) y permite
+ * volver a pedirlo. `cargar` debe ser estable (una funcion de una fachada o un
+ * `useCallback`) para que no se vuelva a pedir en cada render.
+ */
+export function useDatos<T>(cargar: () => Promise<T>) {
   const [datos, setDatos] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let activo = true;
-    apiClient
-      .get<T>(path)
+    cargar()
       .then((respuesta) => {
         if (!activo) return;
         setDatos(respuesta);
@@ -25,16 +28,16 @@ export function useDatos<T>(path: string) {
     return () => {
       activo = false;
     };
-  }, [path]);
+  }, [cargar]);
 
   const recargar = useCallback(async () => {
     try {
-      setDatos(await apiClient.get<T>(path));
+      setDatos(await cargar());
       setError(null);
     } catch (err) {
       setError(mensajeDeError(err, "No fue posible cargar la información."));
     }
-  }, [path]);
+  }, [cargar]);
 
   return { datos, error, recargar };
 }

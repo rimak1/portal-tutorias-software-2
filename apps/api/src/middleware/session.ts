@@ -3,6 +3,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import type { Rol } from "@portal-tutorias/shared";
 import type { Env } from "../config/env.js";
 import { verifySessionToken } from "../lib/token.js";
+import type { UsuariosRepository } from "../modules/usuarios/usuarios.repository.js";
 
 export interface UsuarioAutenticado {
   id: string;
@@ -25,8 +26,8 @@ declare module "fastify" {
  * en cada peticion, recarga rol y estado de la cuenta desde la base de datos
  * para que una cuenta desactivada pierda el acceso de inmediato.
  */
-const sessionPlugin: FastifyPluginAsync<{ env: Env }> = async (fastify, opts) => {
-  const { env } = opts;
+const sessionPlugin: FastifyPluginAsync<{ env: Env; usuarios: UsuariosRepository }> = async (fastify, opts) => {
+  const { env, usuarios } = opts;
 
   fastify.decorate("requireAuth", (rolesPermitidos?: Rol[]) => {
     return async (request: FastifyRequest, reply: FastifyReply) => {
@@ -41,10 +42,7 @@ const sessionPlugin: FastifyPluginAsync<{ env: Env }> = async (fastify, opts) =>
         return reply.unauthorized("La sesion no es valida o expiro.");
       }
 
-      const usuario = await fastify.prisma.usuario.findUnique({
-        where: { id: payload.sub },
-        select: { id: true, correo: true, nombre: true, rol: true, activo: true },
-      });
+      const usuario = await usuarios.buscarDatosDeSesion(payload.sub);
 
       if (!usuario || !usuario.activo) {
         reply.clearCookie(env.SESSION_COOKIE_NAME, { path: "/" });

@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
-import type { Disponibilidad, Materia } from "@portal-tutorias/shared";
+import { useCallback, useMemo, useReducer, useState } from "react";
+import type { Disponibilidad } from "@portal-tutorias/shared";
 import { EstadoVacio } from "../../../components/EstadoVacio";
-import { apiClient } from "../../../lib/api-client";
+import { citasApi } from "../../../lib/api/citas";
+import { disponibilidadApi } from "../../../lib/api/disponibilidad";
+import { materiasApi } from "../../../lib/api/materias";
 import { formatearFecha, formatearFranja, formatearHora } from "../../../lib/fechas";
 import { mensajeDeError, useDatos } from "../../../lib/use-datos";
+import { RESERVA_INICIAL, reservaReducer, type PasoReserva } from "./reserva-wizard";
 
-type Paso = 1 | 2 | 3;
 const NOMBRES_PASOS = ["Elegir tutor", "Elegir franja", "Confirmar"];
 
 const ICONO_CALENDARIO = (
@@ -20,23 +22,19 @@ const ICONO_CALENDARIO = (
 
 /**
  * SWR-25: la reserva se completa en tres pasos (elegir tutor, elegir franja,
- * confirmar) y una sola operacion de escritura. SWR-06 y SWR-07: las franjas
- * llegan ordenadas por fecha y el filtro por materia lo resuelve el servidor.
+ * confirmar) y una sola operacion de escritura. El orden de los pasos lo
+ * gobierna `reservaReducer`. SWR-06 y SWR-07: las franjas llegan ordenadas por
+ * fecha y el filtro por materia lo resuelve el servidor.
  */
 export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
-  const [materiaId, setMateriaId] = useState("");
-  const [paso, setPaso] = useState<Paso>(1);
-  const [tutorId, setTutorId] = useState<string | null>(null);
-  const [franja, setFranja] = useState<Disponibilidad | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [{ paso, materiaId, tutorId, franja, error }, despachar] = useReducer(reservaReducer, RESERVA_INICIAL);
   const [reservando, setReservando] = useState(false);
 
-  const materias = useDatos<{ materias: Materia[] }>("/materias");
-  const disponibilidad = useDatos<{ disponibilidades: Disponibilidad[] }>(
-    materiaId ? `/disponibilidad?materiaId=${materiaId}` : "/disponibilidad",
-  );
+  const materias = useDatos(materiasApi.listarCatalogo);
+  const cargarDisponibilidad = useCallback(() => disponibilidadApi.listar({ materiaId: materiaId || undefined }), [materiaId]);
+  const disponibilidad = useDatos(cargarDisponibilidad);
 
-  const lista = disponibilidad.datos?.disponibilidades;
+  const lista = disponibilidad.datos;
 
   const tutores = useMemo(() => {
     const porTutor = new Map<string, { id: string; nombre: string; materias: Set<string>; franjas: Disponibilidad[] }>();
@@ -52,37 +50,14 @@ export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
 
   const tutorElegido = tutores.find((t) => t.id === tutorId) ?? null;
 
-  function cambiarMateria(valor: string) {
-    setMateriaId(valor);
-    setTutorId(null);
-    setFranja(null);
-    setPaso(1);
-    setError(null);
-  }
-
-  function elegirTutor(id: string) {
-    setTutorId(id);
-    setError(null);
-    setPaso(2);
-  }
-
-  function elegirFranja(elegida: Disponibilidad) {
-    setFranja(elegida);
-    setError(null);
-    setPaso(3);
-  }
-
   async function confirmar() {
     if (!franja) return;
     setReservando(true);
-    setError(null);
     try {
-      await apiClient.post("/citas", { disponibilidadId: franja.id });
+      await citasApi.reservar(franja.id);
       onReservada();
     } catch (err) {
-      setError(mensajeDeError(err, "No fue posible registrar la reserva."));
-      setFranja(null);
-      setPaso(2);
+      despachar({ tipo: "RESERVA_RECHAZADA", mensaje: mensajeDeError(err, "No fue posible registrar la reserva.") });
       await disponibilidad.recargar();
     } finally {
       setReservando(false);
@@ -105,7 +80,7 @@ export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
     <div className="reserva">
       <ol className="pasos" aria-label="Pasos de la reserva">
         {NOMBRES_PASOS.map((nombre, indice) => {
-          const numero = (indice + 1) as Paso;
+          const numero = (indice + 1) as PasoReserva;
           const estado = numero === paso ? "actual" : numero < paso ? "hecho" : "pendiente";
           return (
             <li key={nombre} className={`paso paso--${estado}`} aria-current={numero === paso ? "step" : undefined}>
@@ -126,9 +101,9 @@ export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
         <section className="reserva__seccion">
           <div className="disponibilidad__filtro campo">
             <label htmlFor="materia">Materia</label>
-            <select id="materia" value={materiaId} onChange={(e) => cambiarMateria(e.target.value)}>
+            <select id="materia" value={materiaId} onChange={(e) => despachar({ tipo: "CAMBIAR_MATERIA", materiaId: e.target.value })}>
               <option value="">Todas las materias</option>
-              {(materias.datos?.materias ?? []).map((materia) => (
+              {(materias.datos ?? []).map((materia) => (
                 <option key={materia.id} value={materia.id}>
                   {materia.nombre}
                 </option>
@@ -150,7 +125,7 @@ export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
             <ul className="disponibilidad__lista">
               {tutores.map((tutor) => (
                 <li key={tutor.id}>
-                  <button type="button" className="tarjeta-opcion" onClick={() => elegirTutor(tutor.id)}>
+                  <button type="button" className="tarjeta-opcion" onClick={() => despachar({ tipo: "ELEGIR_TUTOR", tutorId: tutor.id })}>
                     <span className="tarjeta-opcion__titulo">{tutor.nombre}</span>
                     <span className="tarjeta-opcion__detalle">{[...tutor.materias].join(" · ")}</span>
                     <span className="tarjeta-opcion__horario">
@@ -172,7 +147,7 @@ export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
             <ul className="disponibilidad__lista">
               {tutorElegido.franjas.map((d) => (
                 <li key={d.id}>
-                  <button type="button" className="tarjeta-opcion" onClick={() => elegirFranja(d)}>
+                  <button type="button" className="tarjeta-opcion" onClick={() => despachar({ tipo: "ELEGIR_FRANJA", franja: d })}>
                     <span className="tarjeta-opcion__titulo">{d.materia}</span>
                     <span className="tarjeta-opcion__horario">{formatearFranja(d.fechaInicio, d.fechaFin)}</span>
                   </button>
@@ -183,7 +158,7 @@ export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
             <p className="texto-cargando">Este tutor ya no tiene franjas disponibles.</p>
           )}
           <div className="reserva__acciones">
-            <button type="button" className="boton boton--secundario" onClick={() => setPaso(1)}>
+            <button type="button" className="boton boton--secundario" onClick={() => despachar({ tipo: "VOLVER" })}>
               Cambiar de tutor
             </button>
           </div>
@@ -212,7 +187,7 @@ export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
             <button type="button" className="boton boton--primario" onClick={confirmar} disabled={reservando}>
               {reservando ? "Reservando..." : "Confirmar reserva"}
             </button>
-            <button type="button" className="boton boton--secundario" onClick={() => setPaso(2)} disabled={reservando}>
+            <button type="button" className="boton boton--secundario" onClick={() => despachar({ tipo: "VOLVER" })} disabled={reservando}>
               Volver
             </button>
           </div>

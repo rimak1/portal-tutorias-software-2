@@ -1,9 +1,12 @@
 import { useState } from "react";
-import type { Cita, FranjaPropia } from "@portal-tutorias/shared";
+import type { FranjaPropia } from "@portal-tutorias/shared";
 import { EstadoVacio } from "../../../components/EstadoVacio";
 import { TarjetaCita } from "../../../components/TarjetaCita";
-import { apiClient } from "../../../lib/api-client";
+import { EJECUTORES, ETIQUETAS, accionesDisponibles, claseDeBoton, type AccionSimple } from "../../../lib/acciones-cita";
+import { citasApi } from "../../../lib/api/citas";
+import { disponibilidadApi } from "../../../lib/api/disponibilidad";
 import { formatearFranja } from "../../../lib/fechas";
+import { useAccionesDeCita } from "../../../lib/use-acciones-cita";
 import { mensajeDeError, useDatos } from "../../../lib/use-datos";
 
 type PanelAbierto = { citaId: string; tipo: "rechazar" | "reprogramar" };
@@ -19,27 +22,12 @@ const ICONO_LISTA = (
 
 /** SWR-10 a SWR-14 y SWR-19: el tutor atiende solicitudes (aprobar, rechazar con motivo, reprogramar) y finaliza citas. */
 export function MisCitasTutor() {
-  const { datos, error, recargar } = useDatos<{ citas: Cita[] }>("/citas");
-  const [mensaje, setMensaje] = useState<string | null>(null);
-  const [procesando, setProcesando] = useState<string | null>(null);
+  const { datos: citas, error, recargar } = useDatos(citasApi.listar);
+  const { mensaje, setMensaje, procesando, ejecutar } = useAccionesDeCita(recargar);
   const [abierto, setAbierto] = useState<PanelAbierto | null>(null);
   const [motivo, setMotivo] = useState("");
   const [libres, setLibres] = useState<FranjaPropia[]>([]);
   const [franjaNueva, setFranjaNueva] = useState("");
-
-  async function ejecutar(citaId: string, accion: string, payload?: object) {
-    setProcesando(citaId);
-    setMensaje(null);
-    try {
-      await apiClient.post(`/citas/${citaId}/${accion}`, payload);
-      setAbierto(null);
-    } catch (err) {
-      setMensaje(mensajeDeError(err, "No fue posible completar la acción."));
-    } finally {
-      setProcesando(null);
-      await recargar();
-    }
-  }
 
   function abrirRechazo(citaId: string) {
     setMotivo("");
@@ -50,7 +38,7 @@ export function MisCitasTutor() {
   async function abrirReprogramacion(citaId: string) {
     setMensaje(null);
     try {
-      const { franjas } = await apiClient.get<{ franjas: FranjaPropia[] }>("/disponibilidad/mias");
+      const franjas = await disponibilidadApi.listarMiAgenda();
       const disponibles = franjas.filter((f) => f.estado === "LIBRE" && new Date(f.fechaInicio) > new Date());
       setLibres(disponibles);
       setFranjaNueva(disponibles[0]?.id ?? "");
@@ -60,22 +48,26 @@ export function MisCitasTutor() {
     }
   }
 
-  function confirmarRechazo(citaId: string) {
+  async function confirmarRechazo(citaId: string) {
     if (!motivo.trim()) {
       setMensaje("Indica el motivo del rechazo.");
       return;
     }
-    ejecutar(citaId, "rechazar", { motivo });
+    if (await ejecutar(citaId, () => citasApi.rechazar(citaId, motivo))) setAbierto(null);
   }
 
-  if (error && !datos) {
+  async function confirmarReprogramacion(citaId: string) {
+    if (await ejecutar(citaId, () => citasApi.reprogramar(citaId, franjaNueva))) setAbierto(null);
+  }
+
+  if (error && !citas) {
     return (
       <p role="alert" className="mensaje-error">
         {error}
       </p>
     );
   }
-  if (!datos) {
+  if (!citas) {
     return <p className="texto-cargando">Cargando tus tutorías...</p>;
   }
 
@@ -89,7 +81,7 @@ export function MisCitasTutor() {
         </p>
       )}
 
-      {datos.citas.length === 0 ? (
+      {citas.length === 0 ? (
         <EstadoVacio
           icono={ICONO_LISTA}
           titulo="Aún no tienes solicitudes"
@@ -97,27 +89,38 @@ export function MisCitasTutor() {
         />
       ) : (
         <ul className="lista-citas__items">
-          {datos.citas.map((cita) => {
+          {citas.map((cita) => {
             const ocupada = procesando === cita.id;
-            const iniciada = new Date(cita.franja.fechaInicio) <= ahora;
+            const acciones = accionesDisponibles(cita, "tutor", ahora);
+            const panelAbierto = abierto?.citaId === cita.id ? abierto.tipo : null;
 
             return (
               <TarjetaCita key={cita.id} cita={cita} vista="tutor">
-                {cita.estado === "PENDIENTE" && !cita.propuestaPendiente && abierto?.citaId !== cita.id && (
-                  <>
-                    <button type="button" className="boton boton--primario" disabled={ocupada} onClick={() => ejecutar(cita.id, "aprobar")}>
-                      Aprobar
-                    </button>
-                    <button type="button" className="boton boton--secundario" disabled={ocupada} onClick={() => abrirRechazo(cita.id)}>
-                      Rechazar
-                    </button>
-                    <button type="button" className="boton boton--secundario" disabled={ocupada} onClick={() => abrirReprogramacion(cita.id)}>
-                      Proponer otro horario
-                    </button>
-                  </>
+                {acciones.includes("finalizar") && (
+                  <span className="tarjeta-cita__nota">Ya pasó la hora de inicio: finaliza la tutoría cuando concluya.</span>
+                )}
+                {cita.estado === "APROBADA" && !acciones.includes("finalizar") && (
+                  <span className="tarjeta-cita__nota">Podrás finalizarla desde la hora de inicio.</span>
                 )}
 
-                {abierto?.citaId === cita.id && abierto.tipo === "rechazar" && (
+                {!panelAbierto &&
+                  acciones.map((accion) => (
+                    <button
+                      key={accion}
+                      type="button"
+                      className={claseDeBoton(accion)}
+                      disabled={ocupada}
+                      onClick={() => {
+                        if (accion === "rechazar") abrirRechazo(cita.id);
+                        else if (accion === "reprogramar") void abrirReprogramacion(cita.id);
+                        else void ejecutar(cita.id, () => EJECUTORES[accion as AccionSimple](cita.id));
+                      }}
+                    >
+                      {ETIQUETAS[accion]}
+                    </button>
+                  ))}
+
+                {panelAbierto === "rechazar" && (
                   <div className="panel-accion">
                     <div className="campo">
                       <label htmlFor={`motivo-${cita.id}`}>Motivo del rechazo (obligatorio)</label>
@@ -134,7 +137,7 @@ export function MisCitasTutor() {
                   </div>
                 )}
 
-                {abierto?.citaId === cita.id && abierto.tipo === "reprogramar" && (
+                {panelAbierto === "reprogramar" && (
                   <div className="panel-accion">
                     {libres.length === 0 ? (
                       <p className="tarjeta-cita__nota">No tienes otras franjas libres. Publica una nueva en «Mi disponibilidad».</p>
@@ -156,7 +159,7 @@ export function MisCitasTutor() {
                           type="button"
                           className="boton boton--primario"
                           disabled={ocupada || !franjaNueva}
-                          onClick={() => ejecutar(cita.id, "reprogramar", { disponibilidadId: franjaNueva })}
+                          onClick={() => confirmarReprogramacion(cita.id)}
                         >
                           Enviar propuesta
                         </button>
@@ -167,18 +170,6 @@ export function MisCitasTutor() {
                     </div>
                   </div>
                 )}
-
-                {cita.estado === "APROBADA" &&
-                  (iniciada ? (
-                    <>
-                      <span className="tarjeta-cita__nota">Ya pasó la hora de inicio: finaliza la tutoría cuando concluya.</span>
-                      <button type="button" className="boton boton--primario" disabled={ocupada} onClick={() => ejecutar(cita.id, "finalizar")}>
-                        Finalizar tutoría
-                      </button>
-                    </>
-                  ) : (
-                    <span className="tarjeta-cita__nota">Podrás finalizarla desde la hora de inicio.</span>
-                  ))}
               </TarjetaCita>
             );
           })}

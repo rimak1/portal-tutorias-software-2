@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { actualizarFranjaSchema, crearFranjaSchema } from "@portal-tutorias/shared";
 import { exigirUuidDeRuta, validar } from "../../lib/validacion.js";
-import { DisponibilidadService } from "./disponibilidad.service.js";
+import type { DisponibilidadService } from "./disponibilidad.service.js";
 
 const filtrosSchema = z.object({
   tutorId: z.string().uuid("El tutor indicado no es válido.").optional(),
@@ -13,9 +13,10 @@ const filtrosSchema = z.object({
  * F-02 y F-03: consulta de disponibilidad (cualquier usuario autenticado) y
  * gestion de franjas por el propio tutor (crear, modificar y eliminar).
  */
-const disponibilidadRoutes: FastifyPluginAsync = async (fastify) => {
-  const service = new DisponibilidadService(fastify.prisma);
-  const soloTutor = { preHandler: fastify.requireAuth(["TUTOR"]) };
+const disponibilidadRoutes: FastifyPluginAsync<{ disponibilidad: DisponibilidadService }> = async (
+  fastify,
+  { disponibilidad: service },
+) => {  const soloTutor = { preHandler: fastify.requireAuth(["TUTOR"]) };
 
   fastify.get("/disponibilidad", { preHandler: fastify.requireAuth() }, async (request) => {
     const filtros = validar(filtrosSchema, request.query);

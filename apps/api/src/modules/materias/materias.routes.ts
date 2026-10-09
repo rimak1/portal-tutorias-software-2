@@ -1,12 +1,10 @@
 import type { FastifyPluginAsync } from "fastify";
 import { asociarMateriasSchema } from "@portal-tutorias/shared";
 import { validar } from "../../lib/validacion.js";
-import { MateriasService } from "./materias.service.js";
+import type { MateriasService } from "./materias.service.js";
 
 /** SWR-20 (F-10): materias del catalogo y materias del perfil del tutor. */
-const materiasRoutes: FastifyPluginAsync = async (fastify) => {
-  const service = new MateriasService(fastify.prisma);
-
+const materiasRoutes: FastifyPluginAsync<{ materias: MateriasService }> = async (fastify, { materias: service }) => {
   fastify.get("/materias", { preHandler: fastify.requireAuth() }, async () => {
     return { materias: await service.listarCatalogo() };
   });
