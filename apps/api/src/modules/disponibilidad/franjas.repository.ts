@@ -1,41 +1,33 @@
 import type { Prisma } from "@prisma/client";
 import type { EstadoFranja } from "@portal-tutorias/shared";
 import type { Cliente } from "../../db/cliente.js";
+import type {
+  DatosDeFranja,
+  FranjaBloqueadaParaReprogramar,
+  FranjaBloqueadaParaReserva,
+  FranjaConRelaciones,
+  RepositorioDeFranjas,
+} from "./franjas.puertos.js";
 
-export const INCLUDE_FRANJA = {
+const INCLUDE_FRANJA = {
   materia: { select: { id: true, nombre: true } },
   tutor: { select: { id: true, nombre: true } },
 } satisfies Prisma.DisponibilidadInclude;
 
-export type FranjaConRelaciones = Prisma.DisponibilidadGetPayload<{ include: typeof INCLUDE_FRANJA }>;
-
-export interface FranjaBloqueadaParaReserva {
-  estado: EstadoFranja;
-  fechaInicio: Date;
-  tutorActivo: boolean;
-}
-
-export interface FranjaBloqueadaParaReprogramar {
-  estado: EstadoFranja;
-  fechaInicio: Date;
-  tutorId: string;
-}
-
 /**
- * Repositorio de franjas de disponibilidad. Los metodos `bloquear*` toman la
- * fila con SELECT ... FOR UPDATE y por eso solo tienen sentido dentro de una
- * transaccion (ver UnidadDeTrabajo).
+ * Implementacion Prisma del repositorio de franjas. Los metodos `bloquear*`
+ * toman la fila con SELECT ... FOR UPDATE y por eso solo tienen sentido dentro
+ * de una transaccion (ver UnidadDeTrabajoPrisma).
  */
-export class FranjasRepository {
+export class FranjasRepository implements RepositorioDeFranjas {
   constructor(private readonly db: Cliente) {}
 
-  /** SWR-06 / SWR-07: franjas libres, vigentes y de tutores activos, por fecha, con filtros opcionales. */
-  listarLibresProximas(filtros: { tutorId?: string; materiaId?: string }): Promise<FranjaConRelaciones[]> {
+  listarLibresProximas(filtros: { tutorId?: string; materiaId?: string }, desde: Date): Promise<FranjaConRelaciones[]> {
     return this.db.disponibilidad.findMany({
       where: {
         estado: "LIBRE",
         eliminadaEn: null,
-        fechaInicio: { gte: new Date() },
+        fechaInicio: { gte: desde },
         tutor: { activo: true },
         ...(filtros.tutorId ? { tutorId: filtros.tutorId } : {}),
         ...(filtros.materiaId ? { materiaId: filtros.materiaId } : {}),
@@ -45,35 +37,34 @@ export class FranjasRepository {
     });
   }
 
-  listarVigentesDeTutor(tutorId: string): Promise<FranjaConRelaciones[]> {
+  listarVigentesDeTutor(tutorId: string, desde: Date): Promise<FranjaConRelaciones[]> {
     return this.db.disponibilidad.findMany({
-      where: { tutorId, eliminadaEn: null, fechaFin: { gte: new Date() } },
+      where: { tutorId, eliminadaEn: null, fechaFin: { gte: desde } },
       orderBy: { fechaInicio: "asc" },
       include: INCLUDE_FRANJA,
     });
   }
 
-  crear(datos: { tutorId: string; materiaId: string; fechaInicio: Date; fechaFin: Date }): Promise<FranjaConRelaciones> {
+  crear(datos: DatosDeFranja & { tutorId: string }): Promise<FranjaConRelaciones> {
     return this.db.disponibilidad.create({ data: datos, include: INCLUDE_FRANJA });
   }
 
-  actualizar(id: string, datos: { materiaId: string; fechaInicio: Date; fechaFin: Date }): Promise<FranjaConRelaciones> {
+  actualizar(id: string, datos: DatosDeFranja): Promise<FranjaConRelaciones> {
     return this.db.disponibilidad.update({ where: { id }, data: datos, include: INCLUDE_FRANJA });
   }
 
-  cargar(id: string) {
+  cargar(id: string): Promise<DatosDeFranja> {
     return this.db.disponibilidad.findUniqueOrThrow({ where: { id } });
   }
 
-  async marcarEliminada(id: string): Promise<void> {
-    await this.db.disponibilidad.update({ where: { id }, data: { eliminadaEn: new Date() } });
+  async marcarEliminada(id: string, cuando: Date): Promise<void> {
+    await this.db.disponibilidad.update({ where: { id }, data: { eliminadaEn: cuando } });
   }
 
   async cambiarEstado(id: string, estado: EstadoFranja): Promise<void> {
     await this.db.disponibilidad.update({ where: { id }, data: { estado } });
   }
 
-  /** Verificacion previa de traslape; las franjas contiguas (fin == inicio) no se consideran traslapadas. */
   async existeTraslape(tutorId: string, inicio: Date, fin: Date, ignorarFranjaId?: string): Promise<boolean> {
     const traslapada = await this.db.disponibilidad.findFirst({
       where: {
@@ -88,7 +79,6 @@ export class FranjasRepository {
     return traslapada !== null;
   }
 
-  /** Bloquea una franja propia no eliminada y devuelve su estado, o null si no existe. */
   async bloquearDelTutor(tutorId: string, franjaId: string): Promise<EstadoFranja | null> {
     const filas = await this.db.$queryRaw<{ estado: EstadoFranja }[]>`
       SELECT "estado"::text AS "estado"
@@ -98,7 +88,6 @@ export class FranjasRepository {
     return filas[0]?.estado ?? null;
   }
 
-  /** Bloquea la franja que se va a reservar, junto con el estado de la cuenta de su tutor. */
   async bloquearParaReserva(franjaId: string): Promise<FranjaBloqueadaParaReserva | null> {
     const filas = await this.db.$queryRaw<{ estado: EstadoFranja; fecha_inicio: Date; tutor_activo: boolean }[]>`
       SELECT d."estado"::text AS "estado", d."fecha_inicio" AS "fecha_inicio", u."activo" AS "tutor_activo"
@@ -110,7 +99,6 @@ export class FranjasRepository {
     return fila ? { estado: fila.estado, fechaInicio: fila.fecha_inicio, tutorActivo: fila.tutor_activo } : null;
   }
 
-  /** Bloquea la franja que el tutor propone como nuevo horario. */
   async bloquearParaReprogramar(franjaId: string): Promise<FranjaBloqueadaParaReprogramar | null> {
     const filas = await this.db.$queryRaw<{ estado: EstadoFranja; fecha_inicio: Date; tutor_id: string }[]>`
       SELECT "estado"::text AS "estado", "fecha_inicio", "tutor_id"

@@ -1,8 +1,9 @@
 import type { Materia } from "@portal-tutorias/shared";
 import type { Cliente } from "../../db/cliente.js";
+import type { RepositorioDeMaterias } from "./materias.puertos.js";
 
-/** Repositorio del catalogo de materias y de las materias que imparte cada tutor. */
-export class MateriasRepository {
+/** Implementacion Prisma del catalogo de materias y de las materias que imparte cada tutor. */
+export class MateriasRepository implements RepositorioDeMaterias {
   constructor(private readonly db: Cliente) {}
 
   listarCatalogo(): Promise<Materia[]> {
@@ -26,10 +27,9 @@ export class MateriasRepository {
     return asociacion !== null;
   }
 
-  /** Nombre de una materia que el tutor tiene en franjas vigentes y que NO esta en `materiaIds`, si existe. */
-  async buscarMateriaConFranjasVigentesFueraDe(tutorId: string, materiaIds: string[]): Promise<string | null> {
+  async buscarMateriaConFranjasVigentesFueraDe(tutorId: string, materiaIds: string[], desde: Date): Promise<string | null> {
     const franja = await this.db.disponibilidad.findFirst({
-      where: { tutorId, eliminadaEn: null, fechaFin: { gte: new Date() }, materiaId: { notIn: materiaIds } },
+      where: { tutorId, eliminadaEn: null, fechaFin: { gte: desde }, materiaId: { notIn: materiaIds } },
       select: { materia: { select: { nombre: true } } },
     });
     return franja?.materia.nombre ?? null;

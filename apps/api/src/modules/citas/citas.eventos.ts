@@ -1,5 +1,5 @@
 import type { EstadoCita } from "@portal-tutorias/shared";
-import type { Repositorios } from "../../db/unidad-de-trabajo.js";
+import type { Repositorios } from "../../db/puertos.js";
 
 export interface CambioDeEstadoDeCita {
   citaId: string;
@@ -12,12 +12,17 @@ export interface CambioDeEstadoDeCita {
 /** Recibe los repositorios de la MISMA transaccion: si falla, el cambio de estado tampoco se confirma. */
 export type SuscriptorDeCambios = (cambio: CambioDeEstadoDeCita, repos: Repositorios) => Promise<void>;
 
+/** Lo unico que los casos de uso necesitan saber para anunciar un cambio (DIP): no conocen la implementacion. */
+export interface PublicadorDeCambios {
+  publicar(cambio: CambioDeEstadoDeCita, repos: Repositorios): Promise<void>;
+}
+
 /**
  * Patron Observer: el servicio de citas anuncia cada cambio de estado sin saber
  * quien lo atiende. Hoy lo escucha la bitacora; las notificaciones dentro de la
  * plataforma (RF-017, funcionalidad F-07) se sumaran como un suscriptor mas.
  */
-export class CambiosDeCita {
+export class CambiosDeCita implements PublicadorDeCambios {
   private readonly suscriptores: SuscriptorDeCambios[] = [];
 
   /** Devuelve una funcion para cancelar la suscripcion. */

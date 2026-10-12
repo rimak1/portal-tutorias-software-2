@@ -2,13 +2,14 @@
 export class ErrorDeNegocio extends Error {
   constructor(
     message: string,
-    readonly statusCode: 400 | 403 | 404 | 409,
+    readonly statusCode: 400 | 401 | 403 | 404 | 409,
   ) {
     super(message);
   }
 }
 
 export const solicitudInvalida = (mensaje: string) => new ErrorDeNegocio(mensaje, 400);
+export const noAutenticado = (mensaje: string) => new ErrorDeNegocio(mensaje, 401);
 export const noEncontrado = (mensaje: string) => new ErrorDeNegocio(mensaje, 404);
 export const conflicto = (mensaje: string) => new ErrorDeNegocio(mensaje, 409);
 

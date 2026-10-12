@@ -1,8 +1,8 @@
 import type { Cita } from "@portal-tutorias/shared";
-import type { CitaCompleta } from "./citas.repository.js";
+import type { CitaConRelaciones } from "./citas.puertos.js";
 
-/** Mapper: entidad de persistencia -> DTO que viaja por la API. */
-export function aCita(cita: CitaCompleta): Cita {
+/** Mapper: cita del dominio -> DTO que viaja por la API. */
+export function aCita(cita: CitaConRelaciones): Cita {
   const propuesta = cita.propuestas[0];
   return {
     id: cita.id,

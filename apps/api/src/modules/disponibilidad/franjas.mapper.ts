@@ -1,7 +1,7 @@
 import type { Disponibilidad, FranjaPropia } from "@portal-tutorias/shared";
-import type { FranjaConRelaciones } from "./franjas.repository.js";
+import type { FranjaConRelaciones } from "./franjas.puertos.js";
 
-/** Mapper: entidad de persistencia -> DTO que viaja por la API (la base de datos no se filtra hacia afuera). */
+/** Mapper: franja del dominio -> DTO que viaja por la API (la base de datos no se filtra hacia afuera). */
 export function aDisponibilidad(franja: FranjaConRelaciones): Disponibilidad {
   return {
     id: franja.id,

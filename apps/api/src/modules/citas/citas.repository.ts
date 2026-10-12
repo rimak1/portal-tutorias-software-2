@@ -1,8 +1,8 @@
 import type { Prisma } from "@prisma/client";
-import type { EstadoCita } from "@portal-tutorias/shared";
 import type { Cliente } from "../../db/cliente.js";
+import type { CamposDeCita, CitaConRelaciones, RegistroDeHistorial, RepositorioDeCitas } from "./citas.puertos.js";
 
-export const INCLUDE_CITA = {
+const INCLUDE_CITA = {
   estudiante: { select: { id: true, nombre: true } },
   franja: {
     include: {
@@ -16,57 +16,30 @@ export const INCLUDE_CITA = {
   },
 } satisfies Prisma.CitaInclude;
 
-export type CitaCompleta = Prisma.CitaGetPayload<{ include: typeof INCLUDE_CITA }>;
-
-export interface CamposDeCita {
-  estado?: EstadoCita;
-  motivoRechazo?: string;
-  franjaId?: string;
-  fechaFinalizacion?: Date;
-}
-
-export interface RegistroDeHistorial {
-  citaId: string;
-  estadoAnterior: EstadoCita | null;
-  estadoNuevo: EstadoCita;
-  actorId: string;
-  detalle: string;
-}
-
-/** Repositorio de citas, sus propuestas de reprogramacion y su bitacora de estados. */
-export class CitasRepository {
+/** Implementacion Prisma del repositorio de citas, sus propuestas de reprogramacion y su bitacora. */
+export class CitasRepository implements RepositorioDeCitas {
   constructor(private readonly db: Cliente) {}
 
-  async crear(estudianteId: string, franjaId: string): Promise<{ id: string }> {
-    const cita = await this.db.cita.create({ data: { estudianteId, franjaId }, select: { id: true } });
-    return cita;
+  crear(estudianteId: string, franjaId: string): Promise<{ id: string }> {
+    return this.db.cita.create({ data: { estudianteId, franjaId }, select: { id: true } });
   }
 
-  cargar(id: string): Promise<CitaCompleta> {
+  cargar(id: string): Promise<CitaConRelaciones> {
     return this.db.cita.findUniqueOrThrow({ where: { id }, include: INCLUDE_CITA });
   }
 
-  /** Bloquea la cita (FOR UPDATE) para serializar acciones simultaneas; null si no existe. Requiere transaccion. */
-  async bloquearYCargar(id: string): Promise<CitaCompleta | null> {
+  async bloquearYCargar(id: string): Promise<CitaConRelaciones | null> {
     const filas = await this.db.$queryRaw<{ id: string }[]>`
       SELECT "id" FROM "cita" WHERE "id" = ${id}::uuid FOR UPDATE`;
     return filas.length === 0 ? null : this.cargar(id);
   }
 
-  listarDeEstudiante(estudianteId: string): Promise<CitaCompleta[]> {
-    return this.db.cita.findMany({
-      where: { estudianteId },
-      include: INCLUDE_CITA,
-      orderBy: { creadoEn: "desc" },
-    });
+  listarDeEstudiante(estudianteId: string): Promise<CitaConRelaciones[]> {
+    return this.db.cita.findMany({ where: { estudianteId }, include: INCLUDE_CITA, orderBy: { creadoEn: "desc" } });
   }
 
-  listarDeTutor(tutorId: string): Promise<CitaCompleta[]> {
-    return this.db.cita.findMany({
-      where: { franja: { tutorId } },
-      include: INCLUDE_CITA,
-      orderBy: { creadoEn: "desc" },
-    });
+  listarDeTutor(tutorId: string): Promise<CitaConRelaciones[]> {
+    return this.db.cita.findMany({ where: { franja: { tutorId } }, include: INCLUDE_CITA, orderBy: { creadoEn: "desc" } });
   }
 
   async actualizar(id: string, cambios: CamposDeCita): Promise<void> {

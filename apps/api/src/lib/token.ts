@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { Env } from "../config/env.js";
 
+/** Cada funcion declara solo la configuracion que lee (ISP), en vez de recibir todo el entorno. */
+export type ConfigDeSesion = Pick<Env, "SESSION_SECRET" | "SESSION_TTL_HORAS">;
+export type ConfigDeRestablecimiento = Pick<Env, "RESET_TOKEN_SECRET" | "RESET_TOKEN_TTL_MINUTOS">;
+
 export interface SessionTokenPayload {
   sub: string;
 }
@@ -16,15 +20,15 @@ export function passwordFingerprint(passwordHash: string): string {
   return createHash("sha256").update(passwordHash).digest("hex").slice(0, 16);
 }
 
-export function signSessionToken(env: Env, usuarioId: string): string {
-  return jwt.sign({ sub: usuarioId } satisfies SessionTokenPayload, env.SESSION_SECRET, {
-    expiresIn: `${env.SESSION_TTL_HORAS}h`,
+export function signSessionToken(config: ConfigDeSesion, usuarioId: string): string {
+  return jwt.sign({ sub: usuarioId } satisfies SessionTokenPayload, config.SESSION_SECRET, {
+    expiresIn: `${config.SESSION_TTL_HORAS}h`,
   });
 }
 
-export function verifySessionToken(env: Env, token: string): SessionTokenPayload | null {
+export function verifySessionToken(config: Pick<Env, "SESSION_SECRET">, token: string): SessionTokenPayload | null {
   try {
-    return jwt.verify(token, env.SESSION_SECRET) as SessionTokenPayload;
+    return jwt.verify(token, config.SESSION_SECRET) as SessionTokenPayload;
   } catch {
     return null;
   }
@@ -35,16 +39,16 @@ export function verifySessionToken(env: Env, token: string): SessionTokenPayload
  * adicional: la huella de la contrasena vigente actua como marca de "ya usado"
  * o "vencido por cambio de contrasena".
  */
-export function signResetToken(env: Env, usuarioId: string, passwordHash: string): string {
+export function signResetToken(config: ConfigDeRestablecimiento, usuarioId: string, passwordHash: string): string {
   const payload: ResetTokenPayload = { sub: usuarioId, pwfp: passwordFingerprint(passwordHash) };
-  return jwt.sign(payload, env.RESET_TOKEN_SECRET, {
-    expiresIn: `${env.RESET_TOKEN_TTL_MINUTOS}m`,
+  return jwt.sign(payload, config.RESET_TOKEN_SECRET, {
+    expiresIn: `${config.RESET_TOKEN_TTL_MINUTOS}m`,
   });
 }
 
-export function verifyResetToken(env: Env, token: string): ResetTokenPayload | null {
+export function verifyResetToken(config: Pick<Env, "RESET_TOKEN_SECRET">, token: string): ResetTokenPayload | null {
   try {
-    return jwt.verify(token, env.RESET_TOKEN_SECRET) as ResetTokenPayload;
+    return jwt.verify(token, config.RESET_TOKEN_SECRET) as ResetTokenPayload;
   } catch {
     return null;
   }

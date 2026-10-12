@@ -1,41 +1,25 @@
-import type {
-  ActualizarFranjaInput,
-  CrearFranjaInput,
-  Disponibilidad,
-  EstadoFranja,
-  FranjaPropia,
-} from "@portal-tutorias/shared";
-import type { Repositorios, UnidadDeTrabajo } from "../../db/unidad-de-trabajo.js";
+import type { ActualizarFranjaInput, CrearFranjaInput, FranjaPropia } from "@portal-tutorias/shared";
+import type { Repositorios, UnidadDeTrabajo } from "../../db/puertos.js";
 import { conflicto, esViolacionDeTraslape, noEncontrado, solicitudInvalida } from "../../lib/errors.js";
-import { aDisponibilidad, aFranjaPropia } from "./franjas.mapper.js";
+import type { Reloj } from "../../lib/reloj.js";
+import { validarHorario } from "./franja.reglas.js";
+import { aFranjaPropia } from "./franjas.mapper.js";
 
 const MENSAJE_TRASLAPE = "La franja se traslapa con otra de tu agenda.";
 const MENSAJE_RESERVADA = "Esta franja ya está reservada: gestiona primero la cita asociada.";
 
-/** F-02 y F-03: consulta de disponibilidad y gestion de franjas por el propio tutor. */
-export class DisponibilidadService {
-  constructor(private readonly uow: UnidadDeTrabajo) {}
-
-  /**
-   * SWR-06 / SWR-07: franjas libres y vigentes de tutores activos, ordenadas por
-   * fecha y hora, con filtro opcional por tutor y por materia.
-   */
-  async listarProximas(filtros: { tutorId?: string; materiaId?: string } = {}): Promise<Disponibilidad[]> {
-    const franjas = await this.uow.repos.franjas.listarLibresProximas(filtros);
-    return franjas.map(aDisponibilidad);
-  }
-
-  /** Agenda propia del tutor: franjas vigentes en cualquier estado. */
-  async listarDeTutor(tutorId: string): Promise<FranjaPropia[]> {
-    const franjas = await this.uow.repos.franjas.listarVigentesDeTutor(tutorId);
-    return franjas.map(aFranjaPropia);
-  }
+/** F-02: el tutor crea, modifica y elimina sus franjas (SWR-03, SWR-04 y SWR-05). */
+export class GestionDeFranjasService {
+  constructor(
+    private readonly uow: UnidadDeTrabajo,
+    private readonly reloj: Reloj,
+  ) {}
 
   /** SWR-03 y SWR-04: crea una franja con fecha, hora de inicio y de fin, sin traslapes. */
   async crear(tutorId: string, entrada: CrearFranjaInput): Promise<FranjaPropia> {
     const inicio = new Date(entrada.fechaInicio);
     const fin = new Date(entrada.fechaFin);
-    this.validarHorario(inicio, fin);
+    validarHorario(inicio, fin, this.reloj.ahora());
 
     const repos = this.uow.repos;
     await this.exigirMateriaDelPerfil(repos, tutorId, entrada.materiaId);
@@ -62,7 +46,7 @@ export class DisponibilidadService {
         const fin = cambios.fechaFin ? new Date(cambios.fechaFin) : actual.fechaFin;
         const materiaId = cambios.materiaId ?? actual.materiaId;
 
-        this.validarHorario(inicio, fin);
+        validarHorario(inicio, fin, this.reloj.ahora());
         if (materiaId !== actual.materiaId) {
           await this.exigirMateriaDelPerfil(repos, tutorId, materiaId);
         }
@@ -83,17 +67,8 @@ export class DisponibilidadService {
   async eliminar(tutorId: string, franjaId: string): Promise<void> {
     await this.uow.ejecutar(async (repos) => {
       await this.bloquearFranjaLibreDelTutor(repos, tutorId, franjaId);
-      await repos.franjas.marcarEliminada(franjaId);
+      await repos.franjas.marcarEliminada(franjaId, this.reloj.ahora());
     });
-  }
-
-  private validarHorario(inicio: Date, fin: Date): void {
-    if (fin <= inicio) {
-      throw solicitudInvalida("La hora de fin debe ser posterior a la hora de inicio.");
-    }
-    if (inicio <= new Date()) {
-      throw solicitudInvalida("La franja debe comenzar en el futuro.");
-    }
   }
 
   private async exigirMateriaDelPerfil({ materias }: Repositorios, tutorId: string, materiaId: string): Promise<void> {
@@ -116,7 +91,7 @@ export class DisponibilidadService {
 
   /** Bloquea la franja propia para que no la reserven mientras se modifica o elimina; exige que siga libre. */
   private async bloquearFranjaLibreDelTutor({ franjas }: Repositorios, tutorId: string, franjaId: string): Promise<void> {
-    const estado: EstadoFranja | null = await franjas.bloquearDelTutor(tutorId, franjaId);
+    const estado = await franjas.bloquearDelTutor(tutorId, franjaId);
     if (estado === null) {
       throw noEncontrado("La franja no existe.");
     }

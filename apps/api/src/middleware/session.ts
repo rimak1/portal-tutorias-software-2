@@ -3,7 +3,9 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import type { Rol } from "@portal-tutorias/shared";
 import type { Env } from "../config/env.js";
 import { verifySessionToken } from "../lib/token.js";
-import type { UsuariosRepository } from "../modules/usuarios/usuarios.repository.js";
+import type { ConsultaDeSesion } from "../modules/usuarios/usuarios.puertos.js";
+
+export type ConfigDeSesionHttp = Pick<Env, "SESSION_COOKIE_NAME" | "SESSION_SECRET">;
 
 export interface UsuarioAutenticado {
   id: string;
@@ -26,7 +28,7 @@ declare module "fastify" {
  * en cada peticion, recarga rol y estado de la cuenta desde la base de datos
  * para que una cuenta desactivada pierda el acceso de inmediato.
  */
-const sessionPlugin: FastifyPluginAsync<{ env: Env; usuarios: UsuariosRepository }> = async (fastify, opts) => {
+const sessionPlugin: FastifyPluginAsync<{ env: ConfigDeSesionHttp; usuarios: ConsultaDeSesion }> = async (fastify, opts) => {
   const { env, usuarios } = opts;
 
   fastify.decorate("requireAuth", (rolesPermitidos?: Rol[]) => {
@@ -49,7 +51,7 @@ const sessionPlugin: FastifyPluginAsync<{ env: Env; usuarios: UsuariosRepository
         return reply.unauthorized("La cuenta no existe o esta desactivada.");
       }
 
-      if (rolesPermitidos && rolesPermitidos.length > 0 && !rolesPermitidos.includes(usuario.rol as Rol)) {
+      if (rolesPermitidos && rolesPermitidos.length > 0 && !rolesPermitidos.includes(usuario.rol)) {
         return reply.forbidden("Tu rol no tiene acceso a esta funcion.");
       }
 
@@ -57,7 +59,7 @@ const sessionPlugin: FastifyPluginAsync<{ env: Env; usuarios: UsuariosRepository
         id: usuario.id,
         correo: usuario.correo,
         nombre: usuario.nombre,
-        rol: usuario.rol as Rol,
+        rol: usuario.rol,
       };
     };
   });

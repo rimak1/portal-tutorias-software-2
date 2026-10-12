@@ -1,9 +1,13 @@
 import type { Materia } from "@portal-tutorias/shared";
-import type { UnidadDeTrabajo } from "../../db/unidad-de-trabajo.js";
+import type { UnidadDeTrabajo } from "../../db/puertos.js";
 import { conflicto, solicitudInvalida } from "../../lib/errors.js";
+import type { Reloj } from "../../lib/reloj.js";
 
 export class MateriasService {
-  constructor(private readonly uow: UnidadDeTrabajo) {}
+  constructor(
+    private readonly uow: UnidadDeTrabajo,
+    private readonly reloj: Reloj,
+  ) {}
 
   /** Catalogo de materias o areas de tutoria. */
   listarCatalogo(): Promise<Materia[]> {
@@ -27,7 +31,7 @@ export class MateriasService {
         throw solicitudInvalida("Alguna de las materias seleccionadas no existe.");
       }
 
-      const retirada = await materias.buscarMateriaConFranjasVigentesFueraDe(tutorId, ids);
+      const retirada = await materias.buscarMateriaConFranjasVigentesFueraDe(tutorId, ids, this.reloj.ahora());
       if (retirada) {
         throw conflicto(`No puedes quitar «${retirada}» porque tienes franjas vigentes con esa materia.`);
       }

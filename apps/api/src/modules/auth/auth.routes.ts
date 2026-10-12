@@ -5,50 +5,39 @@ import {
   solicitarRecuperacionSchema,
 } from "@portal-tutorias/shared";
 import type { Env } from "../../config/env.js";
-import {
-  type AuthService,
-  CredencialesInvalidasError,
-  CuentaDesactivadaError,
-  TokenRestablecimientoInvalidoError,
-} from "./auth.service.js";
-
-const MENSAJE_CREDENCIALES_INVALIDAS = "Correo o contrasena incorrectos.";
+import type { AuthService } from "./auth.service.js";
+import type { RecuperacionDePasswordService } from "./recuperacion-password.service.js";
 
 export interface AuthRoutesOptions {
-  env: Env;
+  env: Pick<Env, "SESSION_COOKIE_NAME" | "SESSION_TTL_HORAS" | "NODE_ENV">;
   auth: AuthService;
+  recuperacion: RecuperacionDePasswordService;
 }
 
 /**
  * RF-001 a RF-003: inicio y cierre de sesion, solicitud y aplicacion del
- * restablecimiento de contrasena. Rutas publicas salvo /auth/logout.
+ * restablecimiento de contrasena. Rutas publicas salvo /auth/logout. Los
+ * servicios lanzan ErrorDeNegocio y Fastify lo traduce: la ruta no conoce
+ * cada tipo de error.
  */
-const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (fastify, { env, auth: authService }) => {
+const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (fastify, { env, auth, recuperacion }) => {
   fastify.post("/auth/login", async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.badRequest("Correo y contrasena son obligatorios.");
     }
 
-    try {
-      const { token, usuario } = await authService.login(parsed.data.correo, parsed.data.password);
+    const { token, usuario } = await auth.login(parsed.data.correo, parsed.data.password);
 
-      reply.setCookie(env.SESSION_COOKIE_NAME, token, {
-        httpOnly: true,
-        secure: env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: env.SESSION_TTL_HORAS * 60 * 60,
-      });
+    reply.setCookie(env.SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: env.SESSION_TTL_HORAS * 60 * 60,
+    });
 
-      return reply.send({ usuario });
-    } catch (error) {
-      if (error instanceof CredencialesInvalidasError || error instanceof CuentaDesactivadaError) {
-        // Mensaje generico: no se revela si la cuenta existe o esta desactivada.
-        return reply.unauthorized(MENSAJE_CREDENCIALES_INVALIDAS);
-      }
-      throw error;
-    }
+    return reply.send({ usuario });
   });
 
   fastify.post(
@@ -74,7 +63,7 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (fastify, { env,
       return reply.badRequest("Correo invalido.");
     }
 
-    await authService.solicitarRecuperacion(parsed.data.correo);
+    await recuperacion.solicitar(parsed.data.correo);
     // Respuesta identica exista o no la cuenta, para no filtrar informacion.
     return reply.send({ ok: true });
   });
@@ -85,15 +74,8 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (fastify, { env,
       return reply.badRequest("Datos invalidos para restablecer la contrasena.");
     }
 
-    try {
-      await authService.restablecerPassword(parsed.data.token, parsed.data.password);
-      return reply.send({ ok: true });
-    } catch (error) {
-      if (error instanceof TokenRestablecimientoInvalidoError) {
-        return reply.badRequest(error.message);
-      }
-      throw error;
-    }
+    await recuperacion.restablecer(parsed.data.token, parsed.data.password);
+    return reply.send({ ok: true });
   });
 };
 

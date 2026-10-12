@@ -2,7 +2,8 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { actualizarFranjaSchema, crearFranjaSchema } from "@portal-tutorias/shared";
 import { exigirUuidDeRuta, validar } from "../../lib/validacion.js";
-import type { DisponibilidadService } from "./disponibilidad.service.js";
+import type { ConsultaDeDisponibilidadService } from "./consulta-disponibilidad.service.js";
+import type { GestionDeFranjasService } from "./gestion-franjas.service.js";
 
 const filtrosSchema = z.object({
   tutorId: z.string().uuid("El tutor indicado no es válido.").optional(),
@@ -13,35 +14,36 @@ const filtrosSchema = z.object({
  * F-02 y F-03: consulta de disponibilidad (cualquier usuario autenticado) y
  * gestion de franjas por el propio tutor (crear, modificar y eliminar).
  */
-const disponibilidadRoutes: FastifyPluginAsync<{ disponibilidad: DisponibilidadService }> = async (
-  fastify,
-  { disponibilidad: service },
-) => {  const soloTutor = { preHandler: fastify.requireAuth(["TUTOR"]) };
+const disponibilidadRoutes: FastifyPluginAsync<{
+  consulta: ConsultaDeDisponibilidadService;
+  gestion: GestionDeFranjasService;
+}> = async (fastify, { consulta, gestion }) => {
+  const soloTutor = { preHandler: fastify.requireAuth(["TUTOR"]) };
 
   fastify.get("/disponibilidad", { preHandler: fastify.requireAuth() }, async (request) => {
     const filtros = validar(filtrosSchema, request.query);
-    return { disponibilidades: await service.listarProximas(filtros) };
+    return { disponibilidades: await consulta.listarProximas(filtros) };
   });
 
   fastify.get("/disponibilidad/mias", soloTutor, async (request) => {
-    return { franjas: await service.listarDeTutor(request.usuario!.id) };
+    return { franjas: await consulta.listarDeTutor(request.usuario!.id) };
   });
 
   fastify.post("/disponibilidad", soloTutor, async (request, reply) => {
     const entrada = validar(crearFranjaSchema, request.body);
-    const franja = await service.crear(request.usuario!.id, entrada);
+    const franja = await gestion.crear(request.usuario!.id, entrada);
     return reply.code(201).send({ franja });
   });
 
   fastify.patch<{ Params: { id: string } }>("/disponibilidad/:id", soloTutor, async (request) => {
     const id = exigirUuidDeRuta(request.params.id, "La franja no existe.");
     const cambios = validar(actualizarFranjaSchema, request.body);
-    return { franja: await service.actualizar(request.usuario!.id, id, cambios) };
+    return { franja: await gestion.actualizar(request.usuario!.id, id, cambios) };
   });
 
   fastify.delete<{ Params: { id: string } }>("/disponibilidad/:id", soloTutor, async (request, reply) => {
     const id = exigirUuidDeRuta(request.params.id, "La franja no existe.");
-    await service.eliminar(request.usuario!.id, id);
+    await gestion.eliminar(request.usuario!.id, id);
     return reply.code(204).send();
   });
 };

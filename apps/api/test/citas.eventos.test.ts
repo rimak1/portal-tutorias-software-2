@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Repositorios } from "../src/db/unidad-de-trabajo.js";
+import type { Repositorios } from "../src/db/puertos.js";
 import { CambiosDeCita, registrarEnHistorial, type CambioDeEstadoDeCita } from "../src/modules/citas/citas.eventos.js";
 
 const CAMBIO: CambioDeEstadoDeCita = {

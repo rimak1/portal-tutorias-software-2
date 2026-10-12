@@ -1,81 +1,28 @@
-import type { Env } from "../../config/env.js";
-import { hashPassword, verifyPassword } from "../../lib/hash.js";
-import { passwordFingerprint, signResetToken, signSessionToken, verifyResetToken } from "../../lib/token.js";
-import type { EmailSender } from "../email/email-sender.js";
-import type { UsuariosRepository } from "../usuarios/usuarios.repository.js";
+import { noAutenticado } from "../../lib/errors.js";
+import { verifyPassword } from "../../lib/hash.js";
+import { signSessionToken, type ConfigDeSesion } from "../../lib/token.js";
+import type { BuscadorDeCuentas } from "../usuarios/usuarios.puertos.js";
 
-export class CredencialesInvalidasError extends Error {}
-export class CuentaDesactivadaError extends Error {}
-export class TokenRestablecimientoInvalidoError extends Error {}
-
+/** RF-001: inicio de sesion. La recuperacion de contrasena es otro caso de uso (RecuperacionDePasswordService). */
 export class AuthService {
   constructor(
-    private readonly usuarios: UsuariosRepository,
-    private readonly env: Env,
-    private readonly emailSender: EmailSender,
+    private readonly cuentas: BuscadorDeCuentas,
+    private readonly config: ConfigDeSesion,
   ) {}
 
-  /** RF-001: inicia sesion y emite el token que viaja en la cookie de sesion. */
+  /** Valida las credenciales y emite el token que viaja en la cookie de sesion. */
   async login(correo: string, password: string) {
-    const usuario = await this.usuarios.buscarPorCorreo(correo);
+    const cuenta = await this.cuentas.buscarPorCorreo(correo);
 
-    if (!usuario) {
-      throw new CredencialesInvalidasError("Correo o contrasena incorrectos.");
+    // Un solo error y un solo mensaje para correo inexistente, contrasena incorrecta y
+    // cuenta desactivada: la respuesta no revela cual de los tres fue.
+    if (!cuenta || !(await verifyPassword(cuenta.passwordHash, password)) || !cuenta.activo) {
+      throw noAutenticado("Correo o contrasena incorrectos.");
     }
 
-    const passwordValida = await verifyPassword(usuario.passwordHash, password);
-    if (!passwordValida) {
-      throw new CredencialesInvalidasError("Correo o contrasena incorrectos.");
-    }
-
-    if (!usuario.activo) {
-      throw new CuentaDesactivadaError("La cuenta esta desactivada.");
-    }
-
-    const token = signSessionToken(this.env, usuario.id);
     return {
-      token,
-      usuario: {
-        id: usuario.id,
-        correo: usuario.correo,
-        nombre: usuario.nombre,
-        rol: usuario.rol,
-      },
+      token: signSessionToken(this.config, cuenta.id),
+      usuario: { id: cuenta.id, correo: cuenta.correo, nombre: cuenta.nombre, rol: cuenta.rol },
     };
-  }
-
-  /**
-   * RF-003: emite un enlace de un solo uso hacia el correo del usuario, si existe.
-   * La respuesta nunca revela si el correo esta registrado.
-   */
-  async solicitarRecuperacion(correo: string): Promise<void> {
-    const usuario = await this.usuarios.buscarPorCorreo(correo);
-    if (!usuario || !usuario.activo) {
-      return;
-    }
-
-    const token = signResetToken(this.env, usuario.id, usuario.passwordHash);
-    const enlace = `${this.env.WEB_APP_URL}/restablecer-password?token=${encodeURIComponent(token)}`;
-    await this.emailSender.enviarRecuperacionPassword(usuario.correo, enlace);
-  }
-
-  /** RF-003: valida el token de un solo uso y define la nueva contrasena. */
-  async restablecerPassword(token: string, nuevaPassword: string): Promise<void> {
-    const payload = verifyResetToken(this.env, token);
-    if (!payload) {
-      throw new TokenRestablecimientoInvalidoError("El enlace no es valido o vencio.");
-    }
-
-    const usuario = await this.usuarios.buscarPorId(payload.sub);
-    if (!usuario || !usuario.activo) {
-      throw new TokenRestablecimientoInvalidoError("El enlace no es valido o vencio.");
-    }
-
-    // El enlace deja de servir en cuanto la contrasena cambia una vez (token de un solo uso).
-    if (passwordFingerprint(usuario.passwordHash) !== payload.pwfp) {
-      throw new TokenRestablecimientoInvalidoError("El enlace ya fue utilizado.");
-    }
-
-    await this.usuarios.actualizarPasswordHash(usuario.id, await hashPassword(nuevaPassword));
   }
 }

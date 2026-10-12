@@ -4,6 +4,7 @@ import cookie from "@fastify/cookie";
 import sensible from "@fastify/sensible";
 import type { Env } from "./config/env.js";
 import { crearContenedor } from "./contenedor.js";
+import type { Reloj } from "./lib/reloj.js";
 import prismaPlugin from "./plugins/prisma.js";
 import sessionPlugin from "./middleware/session.js";
 import authRoutes from "./modules/auth/auth.routes.js";
@@ -16,6 +17,8 @@ import { crearEmailSender } from "./modules/email/email-sender.factory.js";
 export interface OpcionesApp {
   /** Permite sustituir el adaptador de correo (p. ej. para registrar los envios en las pruebas). */
   emailSender?: EmailSender;
+  /** Permite fijar el reloj del sistema (p. ej. para probar reglas que dependen de la hora). */
+  reloj?: Reloj;
 }
 
 export async function buildApp(env: Env, opciones: OpcionesApp = {}): Promise<FastifyInstance> {
@@ -35,18 +38,23 @@ export async function buildApp(env: Env, opciones: OpcionesApp = {}): Promise<Fa
     prisma: app.prisma,
     env,
     emailSender: opciones.emailSender ?? crearEmailSender(env, app.log),
+    registro: app.log,
+    reloj: opciones.reloj,
   });
 
-  await app.register(sessionPlugin, { env, usuarios: contenedor.usuarios });
+  await app.register(sessionPlugin, { env, usuarios: contenedor.sesiones });
 
   app.get("/api/salud", async () => ({ estado: "ok" }));
 
   await app.register(
     async (instance) => {
-      await instance.register(authRoutes, { env, auth: contenedor.auth });
-      await instance.register(disponibilidadRoutes, { disponibilidad: contenedor.disponibilidad });
+      await instance.register(authRoutes, { env, auth: contenedor.auth, recuperacion: contenedor.recuperacion });
+      await instance.register(disponibilidadRoutes, {
+        consulta: contenedor.consultaDisponibilidad,
+        gestion: contenedor.gestionFranjas,
+      });
       await instance.register(materiasRoutes, { materias: contenedor.materias });
-      await instance.register(citasRoutes, { citas: contenedor.citas });
+      await instance.register(citasRoutes, { estudiante: contenedor.citasEstudiante, tutor: contenedor.citasTutor });
     },
     { prefix: "/api" },
   );

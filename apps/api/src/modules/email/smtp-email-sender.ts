@@ -2,11 +2,16 @@ import nodemailer, { type Transporter } from "nodemailer";
 import type { Env } from "../../config/env.js";
 import type { EmailSender } from "./email-sender.js";
 
+export type ConfigDeCorreo = Pick<
+  Env,
+  "SMTP_HOST" | "SMTP_PORT" | "SMTP_USER" | "SMTP_PASSWORD" | "SMTP_FROM" | "RESET_TOKEN_TTL_MINUTOS"
+>;
+
 /** Adaptador de salida real: entrega el enlace de restablecimiento por SMTP (E-01, RES-001). */
 export class SmtpEmailSender implements EmailSender {
   private readonly transporter: Transporter;
 
-  constructor(private readonly env: Env) {
+  constructor(private readonly env: ConfigDeCorreo) {
     this.transporter = nodemailer.createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,

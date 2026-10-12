@@ -4,15 +4,9 @@ import { FranjasRepository } from "../modules/disponibilidad/franjas.repository.
 import { MateriasRepository } from "../modules/materias/materias.repository.js";
 import { UsuariosRepository } from "../modules/usuarios/usuarios.repository.js";
 import type { Cliente } from "./cliente.js";
+import type { Repositorios, UnidadDeTrabajo } from "./puertos.js";
 
-export interface Repositorios {
-  usuarios: UsuariosRepository;
-  materias: MateriasRepository;
-  franjas: FranjasRepository;
-  citas: CitasRepository;
-}
-
-/** Fabrica: arma el conjunto de repositorios sobre un cliente (global o transaccional). */
+/** Fabrica: arma el conjunto de repositorios Prisma sobre un cliente (global o transaccional). */
 export function crearRepositorios(db: Cliente): Repositorios {
   return {
     usuarios: new UsuariosRepository(db),
@@ -23,12 +17,11 @@ export function crearRepositorios(db: Cliente): Repositorios {
 }
 
 /**
- * Unit of Work: `ejecutar` abre una transaccion y entrega repositorios ligados a
- * ella, de modo que todo lo que haga el caso de uso se confirma o se revierte
- * junto (reglas RN-002, RN-004, RN-006 y RN-007 dependen de ello). `repos`
- * son los repositorios sin transaccion, para consultas simples.
+ * Unit of Work sobre Prisma: `ejecutar` abre una transaccion y entrega
+ * repositorios ligados a ella, de modo que todo lo que haga el caso de uso se
+ * confirma o se revierte junto (RN-002, RN-004, RN-006 y RN-007 dependen de ello).
  */
-export class UnidadDeTrabajo {
+export class UnidadDeTrabajoPrisma implements UnidadDeTrabajo {
   readonly repos: Repositorios;
 
   constructor(private readonly prisma: PrismaClient) {
