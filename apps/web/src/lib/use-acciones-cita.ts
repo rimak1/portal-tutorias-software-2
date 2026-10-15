@@ -1,10 +1,10 @@
 import { useCallback, useState } from "react";
-import { mensajeDeError } from "./use-datos";
+import { mensajeDeError } from "./api-client";
 
 /**
- * Custom hook compartido por las listas de citas del estudiante y del tutor:
- * ejecuta una accion, informa si esta en curso, muestra el error si falla y
- * refresca la lista al terminar. Devuelve true si la accion tuvo exito.
+ * Ejecuta acciones sobre las citas de una lista: indica qué cita se está
+ * procesando, guarda el mensaje de error si la acción falla y, en ambos casos,
+ * recarga la lista. `ejecutar` devuelve true si la acción tuvo éxito.
  */
 export function useAccionesDeCita(recargar: () => Promise<void>) {
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -28,5 +28,5 @@ export function useAccionesDeCita(recargar: () => Promise<void>) {
     [recargar],
   );
 
-  return { mensaje, setMensaje, procesando, ejecutar };
+  return { mensaje, procesando, ejecutar };
 }

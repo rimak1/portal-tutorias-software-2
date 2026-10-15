@@ -7,10 +7,8 @@ import { EjecutorDeTransiciones } from "../src/modules/citas/ejecutor-de-transic
 import { MundoEnMemoria, RelojFijo } from "./fakes.js";
 
 /**
- * Casos de uso de citas probados SIN base de datos: los servicios dependen de
- * puertos (repositorios, unidad de trabajo, reloj), asi que aqui se les da una
- * implementacion en memoria y un reloj controlado. La integracion real contra
- * PostgreSQL se sigue cubriendo en citas.routes.test.ts.
+ * Casos de uso de citas probados sin base de datos, con repositorios en memoria
+ * y un reloj fijo. La integración con PostgreSQL se prueba en citas.routes.test.ts.
  */
 
 const AHORA = new Date("2026-10-20T15:00:00Z");

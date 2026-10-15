@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { apiClient } from "../lib/api-client";
+import { MensajeExito } from "../components/Mensajes";
+import { authApi } from "../lib/api/auth";
 import { AuthLayout } from "./AuthLayout";
 
+/** RF-003: solicitud del enlace para restablecer la contraseña. */
 export function ForgotPasswordPage() {
   const [correo, setCorreo] = useState("");
   const [enviado, setEnviado] = useState(false);
@@ -12,10 +14,10 @@ export function ForgotPasswordPage() {
     event.preventDefault();
     setEnviando(true);
     try {
-      await apiClient.post("/auth/recuperar", { correo });
+      await authApi.solicitarRecuperacion(correo);
     } finally {
       setEnviando(false);
-      // La respuesta es identica exista o no la cuenta: no se revela informacion.
+      // Siempre se muestra la misma confirmación, para no revelar qué correos están registrados.
       setEnviado(true);
     }
   }
@@ -28,9 +30,7 @@ export function ForgotPasswordPage() {
       <form onSubmit={handleSubmit} className="tarjeta">
         <h1>Recuperar contraseña</h1>
         {enviado ? (
-          <p className="mensaje-exito">
-            Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.
-          </p>
+          <MensajeExito>Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.</MensajeExito>
         ) : (
           <>
             <p>Ingresa tu correo institucional y te enviaremos las instrucciones.</p>

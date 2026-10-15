@@ -5,10 +5,7 @@ import type { CitaConRelaciones, RangoDeFranja, RegistroDeHistorial } from "../s
 import type { FranjaConRelaciones } from "../src/modules/disponibilidad/franjas.puertos.js";
 import type { ActualizadorDePassword, BuscadorDeCuentas, Cuenta } from "../src/modules/usuarios/usuarios.puertos.js";
 
-/**
- * Implementaciones en memoria de los puertos. Existen porque los servicios
- * dependen de abstracciones (DIP): sus reglas se prueban sin base de datos.
- */
+/** Implementaciones en memoria de los repositorios y del reloj, para probar los servicios sin base de datos. */
 
 export class RelojFijo implements Reloj {
   constructor(private instante: Date) {}
@@ -261,7 +258,7 @@ export class MundoEnMemoria implements UnidadDeTrabajo {
   }
 }
 
-/** Cuentas en memoria: implementa solo las interfaces que consume la recuperacion de contrasena (ISP). */
+/** Cuentas en memoria con solo las operaciones que usan el inicio de sesión y la recuperación de contraseña. */
 export class CuentasEnMemoria implements BuscadorDeCuentas, ActualizadorDePassword {
   constructor(readonly cuentas: Cuenta[]) {}
 

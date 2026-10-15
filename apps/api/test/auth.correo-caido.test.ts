@@ -30,7 +30,7 @@ afterAll(async () => {
 
 const recuperar = (correo: string) => app.inject({ method: "POST", url: "/api/auth/recuperar", payload: { correo } });
 
-describe("SWR-18 con el proveedor de correo caido (LSP)", () => {
+describe("SWR-18 con el proveedor de correo caído", () => {
   it("la respuesta es identica para un correo registrado y para uno inexistente: un fallo del SMTP no revela que la cuenta existe", async () => {
     const registrado = await recuperar(correoRegistrado);
     const inexistente = await recuperar("nadie@test.uniquindio.edu.co");

@@ -6,9 +6,9 @@ import { EstudiantePanel } from "./EstudiantePanel";
 import { TutorPanel } from "./TutorPanel";
 
 /**
- * Registro de paneles por rol (OCP): las rutas se generan a partir de el, asi
- * que un rol nuevo se agrega aqui y en `rutas-por-rol.ts` sin tocar App.tsx.
- * Al ser un Record<Rol, ...>, TypeScript obliga a registrar un panel por cada rol.
+ * Panel de cada rol; App.tsx genera una ruta protegida por cada entrada. Para
+ * un rol nuevo basta agregarlo aquí y en `rutas-por-rol.ts` (TypeScript exige
+ * que ningún rol quede sin panel).
  */
 export const PANELES: Record<Rol, ComponentType> = {
   ESTUDIANTE: EstudiantePanel,

@@ -57,10 +57,10 @@ describe("metodos con y sin cuerpo", () => {
 
 describe("apiClient errores", () => {
   it("lanza ApiError con el mensaje del servidor cuando la respuesta no es ok", async () => {
-    mockFetchOnce({ status: 401, json: { message: "Correo o contrasena incorrectos." } });
+    mockFetchOnce({ status: 401, json: { message: "Correo o contraseña incorrectos." } });
 
     await expect(apiClient.post("/auth/login", { correo: "a@a.com", password: "x" })).rejects.toMatchObject({
-      message: "Correo o contrasena incorrectos.",
+      message: "Correo o contraseña incorrectos.",
       status: 401,
     } satisfies Partial<ApiError>);
   });

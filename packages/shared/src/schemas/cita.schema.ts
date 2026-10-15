@@ -23,14 +23,14 @@ export const citaSchema = z.object({
   estudiante: personaSchema,
   /** Franja que la cita ocupa hoy; con una propuesta pendiente es la franja nueva propuesta. */
   franja: franjaCitaSchema,
-  /** Propuesta de reprogramacion esperando respuesta del estudiante; conserva el horario original. */
+  /** Propuesta de reprogramación esperando respuesta del estudiante; conserva el horario original. */
   propuestaPendiente: z.object({ franjaOriginal: franjaCitaSchema }).nullable(),
   creadoEn: z.string(),
   fechaFinalizacion: z.string().nullable(),
 });
 export type Cita = z.infer<typeof citaSchema>;
 
-/** SWR-08 / SWR-25: la reserva es una unica operacion sobre una franja. */
+/** SWR-08 / SWR-25: la reserva es una única operación sobre una franja. */
 export const reservarCitaSchema = z.object({
   disponibilidadId: z.string().uuid("Selecciona una franja válida."),
 });

@@ -5,8 +5,10 @@ import sensible from "@fastify/sensible";
 import type { Env } from "./config/env.js";
 import { crearContenedor } from "./contenedor.js";
 import type { Reloj } from "./lib/reloj.js";
-import prismaPlugin from "./plugins/prisma.js";
+import { crearCookieDeSesion } from "./middleware/cookie-de-sesion.js";
+import { registrarManejadorDeErrores } from "./middleware/manejador-de-errores.js";
 import sessionPlugin from "./middleware/session.js";
+import prismaPlugin from "./plugins/prisma.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import disponibilidadRoutes from "./modules/disponibilidad/disponibilidad.routes.js";
 import materiasRoutes from "./modules/materias/materias.routes.js";
@@ -15,12 +17,13 @@ import type { EmailSender } from "./modules/email/email-sender.js";
 import { crearEmailSender } from "./modules/email/email-sender.factory.js";
 
 export interface OpcionesApp {
-  /** Permite sustituir el adaptador de correo (p. ej. para registrar los envios en las pruebas). */
+  /** Reemplaza el adaptador de correo, p. ej. para registrar los envíos en las pruebas. */
   emailSender?: EmailSender;
-  /** Permite fijar el reloj del sistema (p. ej. para probar reglas que dependen de la hora). */
+  /** Fija la hora del sistema, p. ej. para probar reglas que dependen de "ahora". */
   reloj?: Reloj;
 }
 
+/** Arma la aplicación HTTP completa: plugins, manejo de errores, sesión y rutas bajo `/api`. */
 export async function buildApp(env: Env, opciones: OpcionesApp = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -29,6 +32,7 @@ export async function buildApp(env: Env, opciones: OpcionesApp = {}): Promise<Fa
     },
   });
 
+  registrarManejadorDeErrores(app);
   await app.register(sensible);
   await app.register(cors, { origin: env.WEB_APP_URL, credentials: true });
   await app.register(cookie);
@@ -41,14 +45,23 @@ export async function buildApp(env: Env, opciones: OpcionesApp = {}): Promise<Fa
     registro: app.log,
     reloj: opciones.reloj,
   });
+  const cookieDeSesion = crearCookieDeSesion(env);
 
-  await app.register(sessionPlugin, { env, usuarios: contenedor.sesiones });
+  await app.register(sessionPlugin, {
+    cookie: cookieDeSesion,
+    tokens: contenedor.tokensDeSesion,
+    usuarios: contenedor.sesiones,
+  });
 
   app.get("/api/salud", async () => ({ estado: "ok" }));
 
   await app.register(
     async (instance) => {
-      await instance.register(authRoutes, { env, auth: contenedor.auth, recuperacion: contenedor.recuperacion });
+      await instance.register(authRoutes, {
+        cookie: cookieDeSesion,
+        auth: contenedor.auth,
+        recuperacion: contenedor.recuperacion,
+      });
       await instance.register(disponibilidadRoutes, {
         consulta: contenedor.consultaDisponibilidad,
         gestion: contenedor.gestionFranjas,

@@ -4,77 +4,53 @@ import {
   restablecerPasswordSchema,
   solicitarRecuperacionSchema,
 } from "@portal-tutorias/shared";
-import type { Env } from "../../config/env.js";
+import { validar } from "../../lib/validacion.js";
+import type { CookieDeSesion } from "../../middleware/cookie-de-sesion.js";
 import type { AuthService } from "./auth.service.js";
 import type { RecuperacionDePasswordService } from "./recuperacion-password.service.js";
 
 export interface AuthRoutesOptions {
-  env: Pick<Env, "SESSION_COOKIE_NAME" | "SESSION_TTL_HORAS" | "NODE_ENV">;
+  cookie: CookieDeSesion;
   auth: AuthService;
   recuperacion: RecuperacionDePasswordService;
 }
 
 /**
- * RF-001 a RF-003: inicio y cierre de sesion, solicitud y aplicacion del
- * restablecimiento de contrasena. Rutas publicas salvo /auth/logout. Los
- * servicios lanzan ErrorDeNegocio y Fastify lo traduce: la ruta no conoce
- * cada tipo de error.
+ * RF-001 a RF-003: inicio y cierre de sesión, solicitud del enlace de
+ * restablecimiento y definición de la nueva contraseña. Todas las rutas son
+ * públicas excepto el cierre y la consulta de la sesión.
  */
-const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (fastify, { env, auth, recuperacion }) => {
+const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (fastify, { cookie, auth, recuperacion }) => {
   fastify.post("/auth/login", async (request, reply) => {
-    const parsed = loginSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.badRequest("Correo y contrasena son obligatorios.");
-    }
-
-    const { token, usuario } = await auth.login(parsed.data.correo, parsed.data.password);
-
-    reply.setCookie(env.SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: env.SESSION_TTL_HORAS * 60 * 60,
-    });
-
+    const { correo, password } = validar(loginSchema, request.body, "Correo y contraseña son obligatorios.");
+    const { token, usuario } = await auth.login(correo, password);
+    cookie.escribir(reply, token);
     return reply.send({ usuario });
   });
 
-  fastify.post(
-    "/auth/logout",
-    { preHandler: fastify.requireAuth() },
-    async (request, reply) => {
-      reply.clearCookie(env.SESSION_COOKIE_NAME, { path: "/" });
-      return reply.send({ ok: true });
-    },
-  );
+  fastify.post("/auth/logout", { preHandler: fastify.requireAuth() }, async (_request, reply) => {
+    cookie.borrar(reply);
+    return reply.send({ ok: true });
+  });
 
-  fastify.get(
-    "/auth/sesion",
-    { preHandler: fastify.requireAuth() },
-    async (request, reply) => {
-      return reply.send({ usuario: request.usuario });
-    },
-  );
+  fastify.get("/auth/sesion", { preHandler: fastify.requireAuth() }, async (request, reply) => {
+    return reply.send({ usuario: request.usuario });
+  });
 
+  // La respuesta es la misma exista o no la cuenta, para no revelar qué correos están registrados.
   fastify.post("/auth/recuperar", async (request, reply) => {
-    const parsed = solicitarRecuperacionSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.badRequest("Correo invalido.");
-    }
-
-    await recuperacion.solicitar(parsed.data.correo);
-    // Respuesta identica exista o no la cuenta, para no filtrar informacion.
+    const { correo } = validar(solicitarRecuperacionSchema, request.body, "Correo inválido.");
+    await recuperacion.solicitar(correo);
     return reply.send({ ok: true });
   });
 
   fastify.post("/auth/restablecer", async (request, reply) => {
-    const parsed = restablecerPasswordSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.badRequest("Datos invalidos para restablecer la contrasena.");
-    }
-
-    await recuperacion.restablecer(parsed.data.token, parsed.data.password);
+    const { token, password } = validar(
+      restablecerPasswordSchema,
+      request.body,
+      "Datos inválidos para restablecer la contraseña.",
+    );
+    await recuperacion.restablecer(token, password);
     return reply.send({ ok: true });
   });
 };

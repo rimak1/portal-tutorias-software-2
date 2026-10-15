@@ -9,8 +9,8 @@ export interface TutorConFranjas {
 
 /**
  * Paso 1 de la reserva: agrupa las franjas por tutor. Respeta el orden de
- * llegada, asi que si la lista viene ordenada por fecha, la primera franja de
- * cada tutor es su proxima.
+ * llegada, así que si la lista viene ordenada por fecha, la primera franja de
+ * cada tutor es su próxima.
  */
 export function agruparPorTutor(disponibilidades: Disponibilidad[]): TutorConFranjas[] {
   const porTutor = new Map<string, TutorConFranjas>();

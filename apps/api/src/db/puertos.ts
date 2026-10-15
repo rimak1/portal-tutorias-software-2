@@ -10,12 +10,13 @@ export interface Repositorios {
   citas: RepositorioDeCitas;
 }
 
-/**
- * Puerto de la unidad de trabajo: `ejecutar` corre el caso de uso de forma
- * atomica con repositorios ligados a la misma transaccion; `repos` sirve para
- * consultas simples. Los servicios dependen de esta abstraccion, no de Prisma.
- */
+/** Acceso a los repositorios, con o sin transacción. */
 export interface UnidadDeTrabajo {
+  /** Repositorios fuera de transacción, para consultas que no necesitan atomicidad. */
   readonly repos: Repositorios;
+  /**
+   * Ejecuta `trabajo` en una transacción con repositorios ligados a ella: si
+   * `trabajo` lanza, ninguno de sus cambios se confirma y el error se propaga.
+   */
   ejecutar<T>(trabajo: (repos: Repositorios) => Promise<T>): Promise<T>;
 }

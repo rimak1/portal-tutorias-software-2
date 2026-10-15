@@ -1,43 +1,41 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { UsuarioSesion } from "@portal-tutorias/shared";
-import { apiClient, ApiError } from "./api-client";
+import { ApiError } from "./api-client";
+import { authApi } from "./api/auth";
 
 interface AuthContextValue {
+  /** null mientras no haya sesión. */
   usuario: UsuarioSesion | null;
+  /** true hasta saber si había una sesión abierta al cargar la aplicación. */
   cargando: boolean;
+  /** Lanza ApiError si las credenciales no son válidas. */
   login: (correo: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+/** Mantiene el usuario de la sesión actual y lo expone a la aplicación mediante `useAuth`. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioSesion | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  const cargarSesion = useCallback(async () => {
-    try {
-      const data = await apiClient.get<{ usuario: UsuarioSesion }>("/auth/sesion");
-      setUsuario(data.usuario);
-    } catch {
-      setUsuario(null);
-    } finally {
-      setCargando(false);
-    }
-  }, []);
-
   useEffect(() => {
-    cargarSesion();
-  }, [cargarSesion]);
+    authApi
+      .sesionActual()
+      .then(setUsuario)
+      .catch(() => setUsuario(null))
+      .finally(() => setCargando(false));
+  }, []);
 
   const login = useCallback(async (correo: string, password: string) => {
-    const data = await apiClient.post<{ usuario: UsuarioSesion }>("/auth/login", { correo, password });
-    setUsuario(data.usuario);
+    setUsuario(await authApi.iniciarSesion(correo, password));
   }, []);
 
+  // La sesión local se cierra aunque el servidor responda con error (p. ej. la sesión ya había vencido).
   const logout = useCallback(async () => {
     try {
-      await apiClient.post("/auth/logout");
+      await authApi.cerrarSesion();
     } catch (error) {
       if (!(error instanceof ApiError)) {
         throw error;
@@ -52,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/** Sesión actual. Solo puede usarse dentro de un AuthProvider. */
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) {

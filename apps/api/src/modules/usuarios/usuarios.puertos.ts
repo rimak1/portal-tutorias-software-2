@@ -11,12 +11,7 @@ export interface Cuenta {
 
 export type DatosDeSesion = Omit<Cuenta, "passwordHash">;
 
-/*
- * Interfaces pequenas por rol de uso (ISP): cada cliente depende solo de lo que
- * necesita. El middleware de sesion no tiene por que conocer como se guardan
- * o se cambian las contrasenas.
- */
-
+/** Búsqueda de cuentas con su hash de contraseña, para autenticar y restablecer. */
 export interface BuscadorDeCuentas {
   buscarPorCorreo(correo: string): Promise<Cuenta | null>;
   buscarPorId(id: string): Promise<Cuenta | null>;
@@ -26,6 +21,7 @@ export interface ActualizadorDePassword {
   actualizarPasswordHash(id: string, passwordHash: string): Promise<void>;
 }
 
+/** Datos de la cuenta que se revisan en cada petición autenticada (sin el hash de la contraseña). */
 export interface ConsultaDeSesion {
   buscarDatosDeSesion(id: string): Promise<DatosDeSesion | null>;
 }

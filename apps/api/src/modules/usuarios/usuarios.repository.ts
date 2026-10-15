@@ -1,7 +1,7 @@
 import type { Cliente } from "../../db/cliente.js";
 import type { Cuenta, DatosDeSesion, RepositorioDeUsuarios } from "./usuarios.puertos.js";
 
-/** Implementacion Prisma del repositorio de cuentas: unico punto de acceso a la tabla `usuario`. */
+/** Cuentas de usuario sobre Prisma: único punto de acceso a la tabla `usuario`. */
 export class UsuariosRepository implements RepositorioDeUsuarios {
   constructor(private readonly db: Cliente) {}
 
@@ -13,7 +13,7 @@ export class UsuariosRepository implements RepositorioDeUsuarios {
     return this.db.usuario.findUnique({ where: { id } });
   }
 
-  /** Solo lo necesario para validar una sesion: rol y estado de la cuenta, sin el hash. */
+  /** Solo lo necesario para validar una sesión: rol y estado de la cuenta, sin el hash. */
   buscarDatosDeSesion(id: string): Promise<DatosDeSesion | null> {
     return this.db.usuario.findUnique({
       where: { id },

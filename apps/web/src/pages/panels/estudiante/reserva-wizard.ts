@@ -20,10 +20,10 @@ export type EventoReserva =
   | { tipo: "RESERVA_RECHAZADA"; mensaje: string };
 
 /**
- * Patron State aplicado al asistente de reserva (SWR-25): un reductor puro con
- * las unicas transiciones permitidas entre los tres pasos (elegir tutor,
- * elegir franja, confirmar). Un evento que no corresponde al paso actual se
- * ignora, asi que la interfaz no puede quedar en un estado incoherente.
+ * Reductor del asistente de reserva (SWR-25): define cómo se avanza y se
+ * retrocede entre los tres pasos (elegir tutor, elegir franja, confirmar). Un
+ * evento que no corresponde al paso actual se ignora, de modo que la interfaz
+ * no queda en un estado incoherente.
  */
 export function reservaReducer(estado: EstadoReserva, evento: EventoReserva): EstadoReserva {
   switch (evento.tipo) {

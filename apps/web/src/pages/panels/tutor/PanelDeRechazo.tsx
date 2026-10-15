@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { MensajeError } from "../../../components/Mensajes";
 
 interface Props {
   ocupada: boolean;
@@ -6,7 +7,7 @@ interface Props {
   onVolver: () => void;
 }
 
-/** SWR-12: el motivo del rechazo es obligatorio. Solo captura y valida el motivo. */
+/** SWR-12: pide el motivo del rechazo, que es obligatorio, antes de confirmarlo. */
 export function PanelDeRechazo({ ocupada, onConfirmar, onVolver }: Props) {
   const id = useId();
   const [motivo, setMotivo] = useState("");
@@ -27,11 +28,7 @@ export function PanelDeRechazo({ ocupada, onConfirmar, onVolver }: Props) {
         <label htmlFor={id}>Motivo del rechazo (obligatorio)</label>
         <textarea id={id} rows={3} value={motivo} onChange={(e) => setMotivo(e.target.value)} />
       </div>
-      {error && (
-        <p role="alert" className="mensaje-error">
-          {error}
-        </p>
-      )}
+      {error && <MensajeError>{error}</MensajeError>}
       <div className="reserva__acciones">
         <button type="button" className="boton boton--peligro" disabled={ocupada} onClick={confirmar}>
           Confirmar rechazo

@@ -1,25 +1,17 @@
 import type { Disponibilidad, Materia } from "@portal-tutorias/shared";
 import { EstadoVacio } from "../../../components/EstadoVacio";
+import { IconoCalendario } from "../../../components/Iconos";
 import type { TutorConFranjas } from "../../../lib/agrupar-por-tutor";
 import { formatearFecha, formatearFranja, formatearHora } from "../../../lib/fechas";
 import type { PasoReserva } from "./reserva-wizard";
 
 /*
- * Un componente por paso de la reserva (SRP): cada uno recibe lo que muestra y
- * avisa lo que el estudiante eligio; ninguno carga datos ni sabe de los demas.
+ * Pasos del asistente de reserva. Cada paso muestra lo que recibe y avisa la
+ * elección del estudiante; la carga de datos y el avance entre pasos los
+ * maneja ReservarTutoria.
  */
 
 const NOMBRES_PASOS = ["Elegir tutor", "Elegir franja", "Confirmar"];
-
-const ICONO_CALENDARIO = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
-    <path d="M3.5 9.5h17" strokeLinecap="round" />
-    <path d="M8 3v3M16 3v3" strokeLinecap="round" />
-    <circle cx="8.5" cy="14" r="1" fill="currentColor" stroke="none" />
-    <circle cx="12" cy="14" r="1" fill="currentColor" stroke="none" />
-  </svg>
-);
 
 export function IndicadorDePasos({ paso }: { paso: PasoReserva }) {
   return (
@@ -70,7 +62,7 @@ export function PasoElegirTutor({
           <p className="texto-cargando">No hay franjas disponibles para esta materia.</p>
         ) : (
           <EstadoVacio
-            icono={ICONO_CALENDARIO}
+            icono={<IconoCalendario />}
             titulo="Aún no hay tutorías disponibles"
             texto="Cuando los tutores publiquen sus franjas horarias, las verás aquí para poder reservar tu sesión."
           />

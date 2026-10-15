@@ -1,16 +1,21 @@
 import type { ReactNode } from "react";
 import type { Cita } from "@portal-tutorias/shared";
+import type { Vista } from "../lib/acciones-cita";
 import { formatearFranja } from "../lib/fechas";
 import { EstadoCitaBadge } from "./Insignias";
 
-/** Misma tarjeta para estudiante y tutor: ambos ven el mismo estado de la cita (SWR-14). */
+/**
+ * SWR-14: tarjeta de una cita, igual para el estudiante y el tutor salvo el
+ * nombre de la contraparte y el aviso de una propuesta pendiente. `children`
+ * son los botones de acción.
+ */
 export function TarjetaCita({
   cita,
   vista,
   children,
 }: {
   cita: Cita;
-  vista: "estudiante" | "tutor";
+  vista: Vista;
   children?: ReactNode;
 }) {
   const horario = formatearFranja(cita.franja.fechaInicio, cita.franja.fechaFin);

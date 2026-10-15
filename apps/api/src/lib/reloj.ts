@@ -1,4 +1,4 @@
-/** Abstraccion del tiempo: las reglas que dependen de "ahora" se prueban sin esperar ni falsear el reloj global. */
+/** Fuente de la hora actual. Las pruebas usan un reloj fijo para las reglas que dependen de "ahora". */
 export interface Reloj {
   ahora(): Date;
 }

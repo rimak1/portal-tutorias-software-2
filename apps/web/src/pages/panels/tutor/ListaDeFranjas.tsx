@@ -6,11 +6,11 @@ import { formatearFranja } from "../../../lib/fechas";
 interface Props {
   franjas: FranjaPropia[];
   onEditar: (franja: FranjaPropia) => void;
-  /** Devuelve true si se elimino; solo entonces se cierra la confirmacion. */
+  /** Devuelve true si se eliminó; solo entonces se cierra la confirmación. */
   onEliminar: (franjaId: string) => Promise<boolean>;
 }
 
-/** Muestra la agenda del tutor y pide confirmacion antes de eliminar; no sabe como se elimina (SRP). */
+/** Agenda del tutor. Las franjas libres se pueden editar o eliminar, con confirmación antes de eliminar. */
 export function ListaDeFranjas({ franjas, onEditar, onEliminar }: Props) {
   const [confirmando, setConfirmando] = useState<string | null>(null);
 

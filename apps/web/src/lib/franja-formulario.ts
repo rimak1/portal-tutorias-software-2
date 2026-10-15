@@ -1,4 +1,4 @@
-import type { DatosDeFranja } from "./api/disponibilidad";
+import type { CrearFranjaInput } from "@portal-tutorias/shared";
 import { deCamposLocales } from "./fechas";
 
 export interface CamposDeFranja {
@@ -8,9 +8,9 @@ export interface CamposDeFranja {
   horaFin: string;
 }
 
-export type ResultadoDeFormulario = { datos: DatosDeFranja } | { error: string };
+export type ResultadoDeFormulario = { datos: CrearFranjaInput } | { error: string };
 
-/** SWR-03: convierte lo escrito en el formulario (fecha y horas locales) en los datos de la franja, o explica que falta. */
+/** SWR-03: convierte lo escrito en el formulario (fecha y horas locales) en los datos de la franja, o explica qué falta. */
 export function construirFranja(campos: CamposDeFranja): ResultadoDeFormulario {
   const fechaInicio = deCamposLocales(campos.fecha, campos.horaInicio);
   const fechaFin = deCamposLocales(campos.fecha, campos.horaFin);

@@ -30,7 +30,10 @@ apps/
 packages/
   shared/   Tipos y esquemas (Zod) compartidos entre api y web
 nginx/      Configuración de Nginx para el despliegue con Docker Compose
+docs/       Documentación técnica
 ```
+
+La organización por capas y los patrones de diseño se explican en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
 ## Requisitos previos
 

@@ -3,8 +3,11 @@ import type { Env } from "./config/env.js";
 import { UnidadDeTrabajoPrisma } from "./db/unidad-de-trabajo.prisma.js";
 import { relojDelSistema, type Reloj } from "./lib/reloj.js";
 import type { Registro } from "./lib/registro.js";
+import type { TokensDeSesion } from "./modules/auth/auth.puertos.js";
 import { AuthService } from "./modules/auth/auth.service.js";
+import { cifradoArgon2 } from "./modules/auth/cifrado-argon2.js";
 import { RecuperacionDePasswordService } from "./modules/auth/recuperacion-password.service.js";
+import { crearTokensDeRestablecimiento, crearTokensDeSesion } from "./modules/auth/tokens-jwt.js";
 import { CambiosDeCita, registrarEnHistorial } from "./modules/citas/citas.eventos.js";
 import { CitasDelEstudianteService } from "./modules/citas/citas-del-estudiante.service.js";
 import { CitasDelTutorService } from "./modules/citas/citas-del-tutor.service.js";
@@ -17,6 +20,7 @@ import type { ConsultaDeSesion } from "./modules/usuarios/usuarios.puertos.js";
 
 export interface Contenedor {
   sesiones: ConsultaDeSesion;
+  tokensDeSesion: TokensDeSesion;
   auth: AuthService;
   recuperacion: RecuperacionDePasswordService;
   materias: MateriasService;
@@ -31,18 +35,19 @@ export interface DependenciasDelContenedor {
   env: Env;
   emailSender: EmailSender;
   registro: Registro;
-  /** Se puede sustituir (p. ej. por un reloj fijo en las pruebas). */
+  /** Por defecto, la hora del sistema. */
   reloj?: Reloj;
 }
 
 /**
- * Raiz de composicion (inyeccion de dependencias): el unico lugar que conoce
- * las clases concretas y las conecta entre si. Los controladores reciben
- * servicios ya armados, y las pruebas pueden sustituir cualquier pieza.
+ * Crea los servicios de la aplicación con sus implementaciones concretas
+ * (Prisma, argon2, JWT). Es el único módulo que las conoce: las rutas reciben
+ * los servicios ya armados.
  */
 export function crearContenedor(dependencias: DependenciasDelContenedor): Contenedor {
   const { prisma, env, emailSender, registro, reloj = relojDelSistema } = dependencias;
   const uow = new UnidadDeTrabajoPrisma(prisma);
+  const tokensDeSesion = crearTokensDeSesion(env);
 
   const cambiosDeCita = new CambiosDeCita();
   cambiosDeCita.suscribir(registrarEnHistorial);
@@ -50,8 +55,16 @@ export function crearContenedor(dependencias: DependenciasDelContenedor): Conten
 
   return {
     sesiones: uow.repos.usuarios,
-    auth: new AuthService(uow.repos.usuarios, env),
-    recuperacion: new RecuperacionDePasswordService(uow.repos.usuarios, env, emailSender, registro),
+    tokensDeSesion,
+    auth: new AuthService(uow.repos.usuarios, cifradoArgon2, tokensDeSesion),
+    recuperacion: new RecuperacionDePasswordService({
+      cuentas: uow.repos.usuarios,
+      cifrado: cifradoArgon2,
+      tokens: crearTokensDeRestablecimiento(env),
+      correo: emailSender,
+      registro,
+      urlWeb: env.WEB_APP_URL,
+    }),
     materias: new MateriasService(uow, reloj),
     consultaDisponibilidad: new ConsultaDeDisponibilidadService(uow.repos.franjas, reloj),
     gestionFranjas: new GestionDeFranjasService(uow, reloj),

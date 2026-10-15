@@ -6,7 +6,7 @@ import { UsuariosRepository } from "../modules/usuarios/usuarios.repository.js";
 import type { Cliente } from "./cliente.js";
 import type { Repositorios, UnidadDeTrabajo } from "./puertos.js";
 
-/** Fabrica: arma el conjunto de repositorios Prisma sobre un cliente (global o transaccional). */
+/** Repositorios Prisma sobre un cliente: el global o el de una transacción en curso. */
 export function crearRepositorios(db: Cliente): Repositorios {
   return {
     usuarios: new UsuariosRepository(db),
@@ -17,9 +17,8 @@ export function crearRepositorios(db: Cliente): Repositorios {
 }
 
 /**
- * Unit of Work sobre Prisma: `ejecutar` abre una transaccion y entrega
- * repositorios ligados a ella, de modo que todo lo que haga el caso de uso se
- * confirma o se revierte junto (RN-002, RN-004, RN-006 y RN-007 dependen de ello).
+ * Transacciones interactivas de Prisma. Las reglas que combinan varias
+ * escrituras (RN-002, RN-004, RN-006 y RN-007) se confirman o se revierten juntas.
  */
 export class UnidadDeTrabajoPrisma implements UnidadDeTrabajo {
   readonly repos: Repositorios;

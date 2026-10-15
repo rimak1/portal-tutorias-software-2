@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { EstadoDeCarga } from "../../../components/Mensajes";
 import { disponibilidadApi } from "../../../lib/api/disponibilidad";
 import { formatearFranja } from "../../../lib/fechas";
 import { useDatos } from "../../../lib/use-datos";
@@ -9,20 +10,14 @@ interface Props {
   onVolver: () => void;
 }
 
-/** SWR-11: el tutor elige otra de sus franjas libres como nuevo horario. Carga sus propias opciones. */
+/** SWR-11: el tutor elige otra de sus franjas libres y futuras como nuevo horario de la cita. */
 export function PanelDeReprogramacion({ ocupada, onEnviar, onVolver }: Props) {
   const id = useId();
   const agenda = useDatos(disponibilidadApi.listarMiAgenda);
   const [elegida, setElegida] = useState("");
 
   if (!agenda.datos) {
-    return agenda.error ? (
-      <p role="alert" className="mensaje-error">
-        {agenda.error}
-      </p>
-    ) : (
-      <p className="texto-cargando">Cargando tus franjas libres...</p>
-    );
+    return <EstadoDeCarga error={agenda.error} texto="Cargando tus franjas libres..." />;
   }
 
   const ahora = new Date();

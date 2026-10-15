@@ -5,7 +5,7 @@ import { useAuth } from "../../lib/auth-context";
 export interface CategoriaPanel {
   etiqueta: string;
   seleccionada?: boolean;
-  /** false cuando la categoria todavia no tiene una funcion real detras (llega en otra entrega). */
+  /** false cuando la categoría todavía no tiene una función real detrás (llega en otra entrega). */
   disponible?: boolean;
   /** Si se indica, la categoria es navegable y selecciona su seccion al hacer clic. */
   onSeleccionar?: () => void;

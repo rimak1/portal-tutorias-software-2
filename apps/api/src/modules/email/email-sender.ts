@@ -1,10 +1,10 @@
 /**
- * Puerto de salida del correo (E-01).
+ * Envío de correos de la plataforma (E-01, única integración externa).
  *
- * Contrato que toda implementacion debe respetar para ser intercambiable (LSP):
- * - Resuelve cuando el correo fue entregado al proveedor y LANZA si no pudo.
- * - No devuelve ni lanza nada que dependa de si la cuenta existe: eso lo decide
- *   quien lo usa, y nunca debe filtrarse al usuario.
+ * Toda implementación debe:
+ * - resolver cuando el proveedor aceptó el correo y lanzar si no pudo entregarlo;
+ * - comportarse igual exista o no la cuenta del destinatario: esa decisión es
+ *   de quien envía, y nunca debe llegar al usuario.
  */
 export interface EmailSender {
   enviarRecuperacionPassword(destinatario: string, enlace: string): Promise<void>;

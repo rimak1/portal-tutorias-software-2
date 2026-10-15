@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { apiClient, ApiError } from "../lib/api-client";
+import { MensajeError } from "../components/Mensajes";
+import { mensajeDeError } from "../lib/api-client";
+import { authApi } from "../lib/api/auth";
 import { AuthLayout } from "./AuthLayout";
 
+/** RF-003: definición de la nueva contraseña con el token del enlace recibido por correo. */
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -23,10 +26,10 @@ export function ResetPasswordPage() {
 
     setEnviando(true);
     try {
-      await apiClient.post("/auth/restablecer", { token, password });
+      await authApi.restablecerPassword(token, password);
       navigate("/login", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No fue posible restablecer la contraseña.");
+      setError(mensajeDeError(err, "No fue posible restablecer la contraseña."));
     } finally {
       setEnviando(false);
     }
@@ -83,7 +86,7 @@ export function ResetPasswordPage() {
           />
         </div>
 
-        {error && <p role="alert" className="mensaje-error">{error}</p>}
+        {error && <MensajeError>{error}</MensajeError>}
 
         <button type="submit" className="boton boton--primario" disabled={enviando}>
           {enviando ? "Guardando..." : "Guardar contraseña"}

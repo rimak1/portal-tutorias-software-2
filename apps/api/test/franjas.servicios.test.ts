@@ -91,7 +91,7 @@ describe("GestionDeFranjasService con repositorios en memoria", () => {
   });
 });
 
-describe("ConsultaDeDisponibilidadService depende solo de la lectura de franjas (ISP)", () => {
+describe("ConsultaDeDisponibilidadService funciona solo con la lectura de franjas", () => {
   it("pide al repositorio las franjas desde el instante que indica el reloj", async () => {
     const listarLibresProximas = vi.fn(async () => []);
     const consulta = new ConsultaDeDisponibilidadService(

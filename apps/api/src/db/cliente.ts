@@ -1,4 +1,4 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 
-/** Cliente de base de datos: el global o el ligado a una transaccion en curso. */
+/** Cliente de base de datos: el global o el ligado a una transacción en curso. */
 export type Cliente = PrismaClient | Prisma.TransactionClient;

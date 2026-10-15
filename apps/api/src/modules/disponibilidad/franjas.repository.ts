@@ -1,23 +1,37 @@
 import type { Prisma } from "@prisma/client";
 import type { EstadoFranja } from "@portal-tutorias/shared";
 import type { Cliente } from "../../db/cliente.js";
-import type {
-  DatosDeFranja,
-  FranjaBloqueadaParaReprogramar,
-  FranjaBloqueadaParaReserva,
-  FranjaConRelaciones,
-  RepositorioDeFranjas,
+import { violaExclusion } from "../../db/errores-postgres.js";
+import {
+  FranjaTraslapada,
+  type DatosDeFranja,
+  type FranjaBloqueadaParaReprogramar,
+  type FranjaBloqueadaParaReserva,
+  type FranjaConRelaciones,
+  type RepositorioDeFranjas,
 } from "./franjas.puertos.js";
+
+/** Restricción de exclusión: un tutor no puede tener dos franjas que se crucen. */
+const RESTRICCION_SIN_TRASLAPE = "disponibilidad_sin_traslape";
 
 const INCLUDE_FRANJA = {
   materia: { select: { id: true, nombre: true } },
   tutor: { select: { id: true, nombre: true } },
 } satisfies Prisma.DisponibilidadInclude;
 
+/** Ejecuta una escritura y traduce la violación de la restricción de traslape a FranjaTraslapada. */
+async function sinTraslape<T>(escritura: Promise<T>): Promise<T> {
+  try {
+    return await escritura;
+  } catch (error) {
+    if (violaExclusion(error, RESTRICCION_SIN_TRASLAPE)) throw new FranjaTraslapada();
+    throw error;
+  }
+}
+
 /**
- * Implementacion Prisma del repositorio de franjas. Los metodos `bloquear*`
- * toman la fila con SELECT ... FOR UPDATE y por eso solo tienen sentido dentro
- * de una transaccion (ver UnidadDeTrabajoPrisma).
+ * Franjas de disponibilidad sobre Prisma. Los métodos `bloquear*` usan
+ * SELECT ... FOR UPDATE y por eso solo tienen efecto dentro de una transacción.
  */
 export class FranjasRepository implements RepositorioDeFranjas {
   constructor(private readonly db: Cliente) {}
@@ -46,11 +60,11 @@ export class FranjasRepository implements RepositorioDeFranjas {
   }
 
   crear(datos: DatosDeFranja & { tutorId: string }): Promise<FranjaConRelaciones> {
-    return this.db.disponibilidad.create({ data: datos, include: INCLUDE_FRANJA });
+    return sinTraslape(this.db.disponibilidad.create({ data: datos, include: INCLUDE_FRANJA }));
   }
 
   actualizar(id: string, datos: DatosDeFranja): Promise<FranjaConRelaciones> {
-    return this.db.disponibilidad.update({ where: { id }, data: datos, include: INCLUDE_FRANJA });
+    return sinTraslape(this.db.disponibilidad.update({ where: { id }, data: datos, include: INCLUDE_FRANJA }));
   }
 
   cargar(id: string): Promise<DatosDeFranja> {

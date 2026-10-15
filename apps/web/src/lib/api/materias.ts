@@ -1,7 +1,7 @@
 import type { Materia } from "@portal-tutorias/shared";
 import { apiClient } from "../api-client";
 
-/** Fachada de las materias: los componentes no conocen rutas ni la forma de las respuestas. */
+/** Catálogo de materias y materias del perfil del tutor. */
 export const materiasApi = {
   listarCatalogo: () => apiClient.get<{ materias: Materia[] }>("/materias").then((r) => r.materias),
   listarMias: () => apiClient.get<{ materias: Materia[] }>("/tutores/yo/materias").then((r) => r.materias),

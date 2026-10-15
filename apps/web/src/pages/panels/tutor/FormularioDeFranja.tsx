@@ -1,29 +1,35 @@
-import { useState, type FormEvent } from "react";
-import type { FranjaPropia, Materia } from "@portal-tutorias/shared";
-import type { DatosDeFranja } from "../../../lib/api/disponibilidad";
+import { useEffect, useState, type FormEvent } from "react";
+import type { CrearFranjaInput, FranjaPropia, Materia } from "@portal-tutorias/shared";
+import { MensajeError, MensajeExito } from "../../../components/Mensajes";
 import { aCamposLocales } from "../../../lib/fechas";
 import { construirFranja } from "../../../lib/franja-formulario";
 
 interface Props {
+  /** Materias del perfil del tutor; la primera se preselecciona en una franja nueva. */
   materias: Materia[];
   /** Si se indica, el formulario edita esa franja; el padre cambia la `key` para reiniciarlo. */
   franjaEnEdicion: FranjaPropia | null;
   guardando: boolean;
-  /** Error o aviso que viene del servidor tras guardar. */
+  /** Resultado del último guardado, informado por el padre. */
   error: string | null;
   exito: string | null;
-  onGuardar: (datos: DatosDeFranja) => void;
+  onGuardar: (datos: CrearFranjaInput) => void;
   onCancelarEdicion: () => void;
 }
 
-/** Captura y valida los campos de una franja; no sabe como se guarda ni donde (SRP). */
+/** Formulario de una franja: valida fecha y horas antes de entregar los datos a `onGuardar`. */
 export function FormularioDeFranja({ materias, franjaEnEdicion, guardando, error, exito, onGuardar, onCancelarEdicion }: Props) {
   const inicial = franjaEnEdicion ? aCamposLocales(franjaEnEdicion.fechaInicio) : null;
-  const [materiaId, setMateriaId] = useState(franjaEnEdicion?.materiaId ?? materias[0].id);
+  const [materiaId, setMateriaId] = useState(franjaEnEdicion?.materiaId ?? materias[0]?.id ?? "");
   const [fecha, setFecha] = useState(inicial?.fecha ?? "");
   const [horaInicio, setHoraInicio] = useState(inicial?.hora ?? "");
   const [horaFin, setHoraFin] = useState(franjaEnEdicion ? aCamposLocales(franjaEnEdicion.fechaFin).hora : "");
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
+
+  // Un resultado nuevo del padre (p. ej. "Franja eliminada.") reemplaza el error de validación anterior.
+  useEffect(() => {
+    setErrorLocal(null);
+  }, [error, exito]);
 
   function enviar(evento: FormEvent) {
     evento.preventDefault();
@@ -66,12 +72,8 @@ export function FormularioDeFranja({ materias, franjaEnEdicion, guardando, error
         </div>
       </div>
 
-      {mensajeDeError && (
-        <p role="alert" className="mensaje-error">
-          {mensajeDeError}
-        </p>
-      )}
-      {exito && <p className="mensaje-exito">{exito}</p>}
+      {mensajeDeError && <MensajeError>{mensajeDeError}</MensajeError>}
+      {exito && <MensajeExito>{exito}</MensajeExito>}
 
       <div className="reserva__acciones">
         <button type="submit" className="boton boton--primario" disabled={guardando}>

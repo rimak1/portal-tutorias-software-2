@@ -16,7 +16,7 @@ const contexto = (extra: Partial<ContextoCita> = {}): ContextoCita => ({
 
 const intentar = (estado: EstadoCita, accion: Accion, ctx = contexto()) => () => estadoDe(estado)[accion](ctx);
 
-describe("RN-006: ciclo de estados de la cita (patron State)", () => {
+describe("RN-006: ciclo de estados de la cita", () => {
   it("cada estado se reconoce por su nombre", () => {
     for (const estado of ESTADOS_CITA) {
       expect(estadoDe(estado).nombre).toBe(estado);

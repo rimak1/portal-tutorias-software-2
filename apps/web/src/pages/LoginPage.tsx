@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
+import { MensajeError } from "../components/Mensajes";
+import { mensajeDeError } from "../lib/api-client";
 import { useAuth } from "../lib/auth-context";
-import { ApiError } from "../lib/api-client";
 import { rutaPanelPorRol } from "../lib/rutas-por-rol";
 import { AuthLayout } from "./AuthLayout";
 
+/** RF-001: inicio de sesión. Con una sesión abierta, redirige al panel del rol (o a la página que se pedía). */
 export function LoginPage() {
   const { usuario, login } = useAuth();
   const location = useLocation();
@@ -25,7 +27,7 @@ export function LoginPage() {
     try {
       await login(correo, password);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No fue posible iniciar sesion.");
+      setError(mensajeDeError(err, "No fue posible iniciar sesión."));
     } finally {
       setEnviando(false);
     }
@@ -66,7 +68,7 @@ export function LoginPage() {
           />
         </div>
 
-        {error && <p role="alert" className="mensaje-error">{error}</p>}
+        {error && <MensajeError>{error}</MensajeError>}
 
         <button type="submit" className="boton boton--primario" disabled={enviando}>
           {enviando ? "Ingresando..." : "Iniciar sesión"}

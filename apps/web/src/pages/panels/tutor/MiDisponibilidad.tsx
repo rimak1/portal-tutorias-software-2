@@ -1,36 +1,32 @@
 import { useState } from "react";
-import type { FranjaPropia } from "@portal-tutorias/shared";
-import { disponibilidadApi, type DatosDeFranja } from "../../../lib/api/disponibilidad";
+import type { CrearFranjaInput, FranjaPropia } from "@portal-tutorias/shared";
+import { EstadoDeCarga } from "../../../components/Mensajes";
+import { mensajeDeError } from "../../../lib/api-client";
+import { disponibilidadApi } from "../../../lib/api/disponibilidad";
 import { materiasApi } from "../../../lib/api/materias";
-import { mensajeDeError, useDatos } from "../../../lib/use-datos";
+import { useDatos } from "../../../lib/use-datos";
 import { FormularioDeFranja } from "./FormularioDeFranja";
 import { ListaDeFranjas } from "./ListaDeFranjas";
 
 /**
- * SWR-03, SWR-04 y SWR-05: el tutor crea, modifica y elimina sus franjas sin
- * traslapes. Este componente solo coordina: carga los datos, llama a la API y
- * decide cuando mostrar el formulario y la lista.
+ * SWR-03, SWR-04 y SWR-05: el tutor publica, modifica y elimina sus franjas.
+ * Carga sus materias y su agenda, envía los cambios a la API y decide si el
+ * formulario crea una franja nueva o edita una existente.
  */
 export function MiDisponibilidad({ irAMaterias }: { irAMaterias: () => void }) {
   const materias = useDatos(materiasApi.listarMias);
   const franjas = useDatos(disponibilidadApi.listarMiAgenda);
 
   const [enEdicion, setEnEdicion] = useState<FranjaPropia | null>(null);
-  // Cambiar la `key` del formulario lo reinicia (campos vacios) despues de guardar.
+  // Cambiar la `key` del formulario lo reinicia con los campos vacíos después de guardar.
   const [versionDelFormulario, setVersionDelFormulario] = useState(0);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
 
-  if ((materias.error && !materias.datos) || (franjas.error && !franjas.datos)) {
-    return (
-      <p role="alert" className="mensaje-error">
-        {materias.error ?? franjas.error}
-      </p>
-    );
-  }
   if (!materias.datos || !franjas.datos) {
-    return <p className="texto-cargando">Cargando tu agenda...</p>;
+    const errorDeCarga = (!materias.datos && materias.error) || (!franjas.datos && franjas.error) || null;
+    return <EstadoDeCarga error={errorDeCarga} texto="Cargando tu agenda..." />;
   }
 
   if (materias.datos.length === 0) {
@@ -55,7 +51,7 @@ export function MiDisponibilidad({ irAMaterias }: { irAMaterias: () => void }) {
     setExito(null);
   }
 
-  async function guardar(datos: DatosDeFranja) {
+  async function guardar(datos: CrearFranjaInput) {
     setError(null);
     setExito(null);
     setGuardando(true);

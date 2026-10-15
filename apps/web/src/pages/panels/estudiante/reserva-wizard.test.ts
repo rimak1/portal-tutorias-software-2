@@ -14,7 +14,7 @@ const FRANJA: Disponibilidad = {
 const aplicar = (...eventos: EventoReserva[]): EstadoReserva => eventos.reduce(reservaReducer, RESERVA_INICIAL);
 
 describe("SWR-25: reservar en un maximo de 3 pasos (elegir tutor, elegir franja, confirmar)", () => {
-  it("elegir tutor y elegir franja llevan al paso de confirmacion: tres pasos en total", () => {
+  it("elegir tutor y elegir franja llevan al paso de confirmación: tres pasos en total", () => {
     const paso1 = RESERVA_INICIAL;
     const paso2 = reservaReducer(paso1, { tipo: "ELEGIR_TUTOR", tutorId: FRANJA.tutor.id });
     const paso3 = reservaReducer(paso2, { tipo: "ELEGIR_FRANJA", franja: FRANJA });
@@ -28,7 +28,7 @@ describe("SWR-25: reservar en un maximo de 3 pasos (elegir tutor, elegir franja,
     expect(aplicar({ tipo: "ELEGIR_FRANJA", franja: FRANJA }).paso).toBe(1);
   });
 
-  it("no hay un cuarto paso: elegir de nuevo estando en la confirmacion no avanza", () => {
+  it("no hay un cuarto paso: elegir de nuevo estando en la confirmación no avanza", () => {
     const confirmando = aplicar({ tipo: "ELEGIR_TUTOR", tutorId: "t" }, { tipo: "ELEGIR_FRANJA", franja: FRANJA });
     expect(reservaReducer(confirmando, { tipo: "ELEGIR_TUTOR", tutorId: "otro" })).toBe(confirmando);
     expect(reservaReducer(confirmando, { tipo: "ELEGIR_FRANJA", franja: FRANJA })).toBe(confirmando);
@@ -36,7 +36,7 @@ describe("SWR-25: reservar en un maximo de 3 pasos (elegir tutor, elegir franja,
 });
 
 describe("navegacion del asistente", () => {
-  it("volver desde la confirmacion regresa a elegir franja y conserva el tutor", () => {
+  it("volver desde la confirmación regresa a elegir franja y conserva el tutor", () => {
     const estado = aplicar({ tipo: "ELEGIR_TUTOR", tutorId: "t" }, { tipo: "ELEGIR_FRANJA", franja: FRANJA }, { tipo: "VOLVER" });
     expect(estado).toMatchObject({ paso: 2, tutorId: "t", franja: null });
   });

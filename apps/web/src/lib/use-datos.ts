@@ -1,43 +1,40 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiError } from "./api-client";
+import { mensajeDeError } from "./api-client";
 
-export function mensajeDeError(err: unknown, porDefecto: string): string {
-  return err instanceof ApiError ? err.message : porDefecto;
-}
+const ERROR_DE_CARGA = "No fue posible cargar la información.";
 
 /**
- * Custom hook: carga un recurso al montar (y cuando cambia `cargar`) y permite
- * volver a pedirlo. `cargar` debe ser estable (una funcion de una fachada o un
- * `useCallback`) para que no se vuelva a pedir en cada render.
+ * Carga un recurso al montar el componente (y cada vez que cambia `cargar`) y
+ * permite volver a pedirlo con `recargar`. `cargar` debe ser estable (una
+ * función de `lib/api` o envuelta en `useCallback`); si no, se pediría en cada render.
  */
 export function useDatos<T>(cargar: () => Promise<T>) {
   const [datos, setDatos] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let activo = true;
-    cargar()
-      .then((respuesta) => {
-        if (!activo) return;
+  const pedir = useCallback(
+    async (sigueVigente: () => boolean = () => true) => {
+      try {
+        const respuesta = await cargar();
+        if (!sigueVigente()) return;
         setDatos(respuesta);
         setError(null);
-      })
-      .catch((err) => {
-        if (activo) setError(mensajeDeError(err, "No fue posible cargar la información."));
-      });
-    return () => {
-      activo = false;
-    };
-  }, [cargar]);
+      } catch (err) {
+        if (sigueVigente()) setError(mensajeDeError(err, ERROR_DE_CARGA));
+      }
+    },
+    [cargar],
+  );
 
-  const recargar = useCallback(async () => {
-    try {
-      setDatos(await cargar());
-      setError(null);
-    } catch (err) {
-      setError(mensajeDeError(err, "No fue posible cargar la información."));
-    }
-  }, [cargar]);
+  useEffect(() => {
+    let vigente = true;
+    void pedir(() => vigente);
+    return () => {
+      vigente = false;
+    };
+  }, [pedir]);
+
+  const recargar = useCallback(() => pedir(), [pedir]);
 
   return { datos, error, recargar };
 }

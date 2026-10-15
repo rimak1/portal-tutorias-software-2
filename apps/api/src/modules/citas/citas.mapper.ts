@@ -1,7 +1,7 @@
 import type { Cita } from "@portal-tutorias/shared";
 import type { CitaConRelaciones } from "./citas.puertos.js";
 
-/** Mapper: cita del dominio -> DTO que viaja por la API. */
+/** Convierte una cita del dominio en el DTO `Cita` que responde la API (fechas en ISO 8601). */
 export function aCita(cita: CitaConRelaciones): Cita {
   const propuesta = cita.propuestas[0];
   return {

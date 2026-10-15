@@ -2,9 +2,11 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ErrorDeNegocio } from "../src/lib/errors.js";
 import { hashPassword, verifyPassword } from "../src/lib/hash.js";
 import type { Registro } from "../src/lib/registro.js";
-import { signResetToken } from "../src/lib/token.js";
+import { signResetToken, type ConfigDeRestablecimiento, type ConfigDeSesion } from "../src/lib/token.js";
 import { AuthService } from "../src/modules/auth/auth.service.js";
-import { RecuperacionDePasswordService, type ConfigDeRecuperacion } from "../src/modules/auth/recuperacion-password.service.js";
+import { cifradoArgon2 } from "../src/modules/auth/cifrado-argon2.js";
+import { RecuperacionDePasswordService } from "../src/modules/auth/recuperacion-password.service.js";
+import { crearTokensDeRestablecimiento, crearTokensDeSesion } from "../src/modules/auth/tokens-jwt.js";
 import type { EmailSender } from "../src/modules/email/email-sender.js";
 import type { Cuenta } from "../src/modules/usuarios/usuarios.puertos.js";
 import { CuentasEnMemoria } from "./fakes.js";
@@ -14,8 +16,22 @@ const CONFIG = {
   SESSION_TTL_HORAS: 12,
   RESET_TOKEN_SECRET: "secreto-de-restablecimiento-pruebas-5678",
   RESET_TOKEN_TTL_MINUTOS: 30,
-  WEB_APP_URL: "http://localhost:5173",
-} satisfies ConfigDeRecuperacion & { SESSION_SECRET: string; SESSION_TTL_HORAS: number };
+} satisfies ConfigDeSesion & ConfigDeRestablecimiento;
+
+const URL_WEB = "http://localhost:5173";
+
+const authCon = (cuentasDePrueba: CuentasEnMemoria) =>
+  new AuthService(cuentasDePrueba, cifradoArgon2, crearTokensDeSesion(CONFIG));
+
+const recuperacionCon = (cuentasDePrueba: CuentasEnMemoria, correo: EmailSender, registro: Registro) =>
+  new RecuperacionDePasswordService({
+    cuentas: cuentasDePrueba,
+    cifrado: cifradoArgon2,
+    tokens: crearTokensDeRestablecimiento(CONFIG),
+    correo,
+    registro,
+    urlWeb: URL_WEB,
+  });
 
 let activa: Cuenta;
 let desactivada: Cuenta;
@@ -39,20 +55,20 @@ const mensajeDe = async (promesa: Promise<unknown>) => {
 
 describe("AuthService.login (SWR-01)", () => {
   it("emite el token y devuelve el rol de la cuenta", async () => {
-    const resultado = await new AuthService(cuentas, CONFIG).login("activa@uq.edu.co", "ClaveActual123");
+    const resultado = await authCon(cuentas).login("activa@uq.edu.co", "ClaveActual123");
 
     expect(resultado.token.length).toBeGreaterThan(20);
     expect(resultado.usuario).toEqual({ id: "u-1", correo: "activa@uq.edu.co", nombre: "Activa", rol: "ESTUDIANTE" });
   });
 
   it("correo inexistente, contrasena incorrecta y cuenta desactivada responden exactamente lo mismo", async () => {
-    const auth = new AuthService(cuentas, CONFIG);
+    const auth = authCon(cuentas);
 
     const inexistente = await mensajeDe(auth.login("nadie@uq.edu.co", "ClaveActual123"));
     const incorrecta = await mensajeDe(auth.login("activa@uq.edu.co", "otra"));
     const inactiva = await mensajeDe(auth.login("inactiva@uq.edu.co", "ClaveActual123"));
 
-    expect(inexistente).toEqual({ status: 401, mensaje: "Correo o contrasena incorrectos." });
+    expect(inexistente).toEqual({ status: 401, mensaje: "Correo o contraseña incorrectos." });
     expect(incorrecta).toEqual(inexistente);
     expect(inactiva).toEqual(inexistente);
   });
@@ -72,7 +88,7 @@ describe("RecuperacionDePasswordService (SWR-18)", () => {
 
   it("envia el enlace a una cuenta activa y no a una inexistente o desactivada", async () => {
     const { enviados, sender } = emisor();
-    const servicio = new RecuperacionDePasswordService(cuentas, CONFIG, sender, registro());
+    const servicio = recuperacionCon(cuentas, sender, registro());
 
     await servicio.solicitar("activa@uq.edu.co");
     await servicio.solicitar("inactiva@uq.edu.co");
@@ -83,10 +99,10 @@ describe("RecuperacionDePasswordService (SWR-18)", () => {
     expect(enviados[0].enlace).toContain("http://localhost:5173/restablecer-password?token=");
   });
 
-  describe("LSP: cualquier EmailSender es sustituible sin cambiar lo que observa quien pide el enlace", () => {
+  describe("cualquier EmailSender es intercambiable sin cambiar lo que observa quien pide el enlace", () => {
     const quePasaCon = async (sender: EmailSender, correo: string) => {
       const log = registro();
-      const resultado = await new RecuperacionDePasswordService(cuentas, CONFIG, sender, log).solicitar(correo).then(
+      const resultado = await recuperacionCon(cuentas, sender, log).solicitar(correo).then(
         () => "resuelve",
         (e) => `lanza ${(e as Error).message}`,
       );
@@ -111,14 +127,14 @@ describe("RecuperacionDePasswordService (SWR-18)", () => {
   });
 
   describe("restablecer", () => {
-    const servicio = () => new RecuperacionDePasswordService(cuentas, CONFIG, { enviarRecuperacionPassword: async () => {} }, registro());
+    const servicio = () => recuperacionCon(cuentas, { enviarRecuperacionPassword: async () => {} }, registro());
 
     it("con un token valido define la nueva contrasena", async () => {
       const cuenta: Cuenta = { ...activa, id: "u-3", correo: "otra@uq.edu.co" };
       const propias = new CuentasEnMemoria([cuenta]);
       const token = signResetToken(CONFIG, cuenta.id, cuenta.passwordHash);
 
-      await new RecuperacionDePasswordService(propias, CONFIG, { enviarRecuperacionPassword: async () => {} }, registro()).restablecer(token, "NuevaClave456");
+      await recuperacionCon(propias, { enviarRecuperacionPassword: async () => {} }, registro()).restablecer(token, "NuevaClave456");
 
       expect(await verifyPassword(cuenta.passwordHash, "NuevaClave456")).toBe(true);
     });
@@ -133,7 +149,7 @@ describe("RecuperacionDePasswordService (SWR-18)", () => {
       const cuenta: Cuenta = { ...activa, id: "u-4", correo: "uso@uq.edu.co" };
       const propias = new CuentasEnMemoria([cuenta]);
       const token = signResetToken(CONFIG, cuenta.id, cuenta.passwordHash);
-      const s = new RecuperacionDePasswordService(propias, CONFIG, { enviarRecuperacionPassword: async () => {} }, registro());
+      const s = recuperacionCon(propias, { enviarRecuperacionPassword: async () => {} }, registro());
 
       await s.restablecer(token, "NuevaClave456");
 

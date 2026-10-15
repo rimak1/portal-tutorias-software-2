@@ -2,7 +2,7 @@ import type { Materia } from "@portal-tutorias/shared";
 import type { Cliente } from "../../db/cliente.js";
 import type { RepositorioDeMaterias } from "./materias.puertos.js";
 
-/** Implementacion Prisma del catalogo de materias y de las materias que imparte cada tutor. */
+/** Catálogo de materias y materias que imparte cada tutor, sobre Prisma. */
 export class MateriasRepository implements RepositorioDeMaterias {
   constructor(private readonly db: Cliente) {}
 

@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from "react";
+import { EstadoDeCarga, MensajeError, MensajeExito } from "../../../components/Mensajes";
+import { mensajeDeError } from "../../../lib/api-client";
 import { materiasApi } from "../../../lib/api/materias";
-import { mensajeDeError, useDatos } from "../../../lib/use-datos";
+import { useDatos } from "../../../lib/use-datos";
 
-/** SWR-20: el tutor asocia una o mas materias a su perfil. */
+/** SWR-20: el tutor elige las materias de su perfil; la selección se guarda completa al enviar. */
 export function MisMaterias() {
   const catalogo = useDatos(materiasApi.listarCatalogo);
   const propias = useDatos(materiasApi.listarMias);
@@ -11,15 +13,9 @@ export function MisMaterias() {
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
 
-  if ((catalogo.error && !catalogo.datos) || (propias.error && !propias.datos)) {
-    return (
-      <p role="alert" className="mensaje-error">
-        {catalogo.error ?? propias.error}
-      </p>
-    );
-  }
   if (!catalogo.datos || !propias.datos) {
-    return <p className="texto-cargando">Cargando materias...</p>;
+    const errorDeCarga = (!catalogo.datos && catalogo.error) || (!propias.datos && propias.error) || null;
+    return <EstadoDeCarga error={errorDeCarga} texto="Cargando materias..." />;
   }
 
   const seleccion = editada ?? new Set(propias.datos.map((m) => m.id));
@@ -62,12 +58,8 @@ export function MisMaterias() {
         ))}
       </fieldset>
 
-      {error && (
-        <p role="alert" className="mensaje-error">
-          {error}
-        </p>
-      )}
-      {exito && <p className="mensaje-exito">{exito}</p>}
+      {error && <MensajeError>{error}</MensajeError>}
+      {exito && <MensajeExito>{exito}</MensajeExito>}
 
       <div>
         <button type="submit" className="boton boton--primario" disabled={guardando || seleccion.size === 0}>

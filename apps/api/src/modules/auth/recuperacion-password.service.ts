@@ -1,67 +1,71 @@
-import type { Env } from "../../config/env.js";
 import { solicitudInvalida } from "../../lib/errors.js";
-import { hashPassword } from "../../lib/hash.js";
 import type { Registro } from "../../lib/registro.js";
-import {
-  passwordFingerprint,
-  signResetToken,
-  verifyResetToken,
-  type ConfigDeRestablecimiento,
-} from "../../lib/token.js";
 import type { EmailSender } from "../email/email-sender.js";
 import type { ActualizadorDePassword, BuscadorDeCuentas } from "../usuarios/usuarios.puertos.js";
+import type { CifradoDePasswords, TokensDeRestablecimiento } from "./auth.puertos.js";
 
-export type ConfigDeRecuperacion = ConfigDeRestablecimiento & Pick<Env, "WEB_APP_URL">;
+export interface DependenciasDeRecuperacion {
+  cuentas: BuscadorDeCuentas & ActualizadorDePassword;
+  cifrado: CifradoDePasswords;
+  tokens: TokensDeRestablecimiento;
+  correo: EmailSender;
+  registro: Registro;
+  /** URL pública de la aplicación web, base del enlace que se envía por correo. */
+  urlWeb: string;
+}
 
-const ENLACE_INVALIDO = "El enlace no es valido o vencio.";
+const ENLACE_INVALIDO = "El enlace no es válido o venció.";
 
-/** RF-003: restablecimiento de contrasena mediante un enlace de un solo uso enviado al correo registrado. */
+/** RF-003: restablecimiento de contraseña mediante un enlace de un solo uso enviado al correo registrado. */
 export class RecuperacionDePasswordService {
-  constructor(
-    private readonly cuentas: BuscadorDeCuentas & ActualizadorDePassword,
-    private readonly config: ConfigDeRecuperacion,
-    private readonly emailSender: EmailSender,
-    private readonly registro: Registro,
-  ) {}
+  constructor(private readonly deps: DependenciasDeRecuperacion) {}
 
   /**
-   * Emite un enlace hacia el correo de la cuenta, si existe y esta activa. La
-   * respuesta nunca revela si el correo esta registrado, ni siquiera cuando el
-   * proveedor de correo falla: el error se registra y no se propaga.
+   * Envía el enlace de restablecimiento si la cuenta existe y está activa.
+   *
+   * Nunca lanza ni cambia su comportamiento según exista o no la cuenta, ni
+   * siquiera si el proveedor de correo falla (el fallo solo se registra): así
+   * la respuesta no revela qué correos están registrados.
    */
   async solicitar(correo: string): Promise<void> {
-    const cuenta = await this.cuentas.buscarPorCorreo(correo);
+    const { cuentas, tokens, urlWeb, registro } = this.deps;
+    const cuenta = await cuentas.buscarPorCorreo(correo);
     if (!cuenta || !cuenta.activo) {
       return;
     }
 
-    const token = signResetToken(this.config, cuenta.id, cuenta.passwordHash);
-    const enlace = `${this.config.WEB_APP_URL}/restablecer-password?token=${encodeURIComponent(token)}`;
+    const token = tokens.emitir(cuenta.id, cuenta.passwordHash);
+    const enlace = `${urlWeb}/restablecer-password?token=${encodeURIComponent(token)}`;
 
     try {
-      await this.emailSender.enviarRecuperacionPassword(cuenta.correo, enlace);
+      await this.deps.correo.enviarRecuperacionPassword(cuenta.correo, enlace);
     } catch (error) {
-      this.registro.error({ err: error, cuentaId: cuenta.id }, "No se pudo enviar el correo de restablecimiento");
+      registro.error({ err: error, cuentaId: cuenta.id }, "No se pudo enviar el correo de restablecimiento");
     }
   }
 
-  /** Valida el token de un solo uso y define la nueva contrasena. */
+  /**
+   * Define la nueva contraseña de la cuenta dueña del token.
+   *
+   * @throws ErrorDeNegocio 400 si el token es inválido, venció, pertenece a una
+   *   cuenta desactivada o ya se usó (la contraseña cambió después de emitirlo).
+   */
   async restablecer(token: string, nuevaPassword: string): Promise<void> {
-    const payload = verifyResetToken(this.config, token);
-    if (!payload) {
+    const { cuentas, cifrado, tokens } = this.deps;
+    const datos = tokens.verificar(token);
+    if (!datos) {
       throw solicitudInvalida(ENLACE_INVALIDO);
     }
 
-    const cuenta = await this.cuentas.buscarPorId(payload.sub);
+    const cuenta = await cuentas.buscarPorId(datos.usuarioId);
     if (!cuenta || !cuenta.activo) {
       throw solicitudInvalida(ENLACE_INVALIDO);
     }
 
-    // El enlace deja de servir en cuanto la contrasena cambia una vez (token de un solo uso).
-    if (passwordFingerprint(cuenta.passwordHash) !== payload.pwfp) {
+    if (tokens.huellaDe(cuenta.passwordHash) !== datos.huellaDePassword) {
       throw solicitudInvalida("El enlace ya fue utilizado.");
     }
 
-    await this.cuentas.actualizarPasswordHash(cuenta.id, await hashPassword(nuevaPassword));
+    await cuentas.actualizarPasswordHash(cuenta.id, await cifrado.cifrar(nuevaPassword));
   }
 }

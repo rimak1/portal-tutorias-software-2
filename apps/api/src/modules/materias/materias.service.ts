@@ -3,25 +3,30 @@ import type { UnidadDeTrabajo } from "../../db/puertos.js";
 import { conflicto, solicitudInvalida } from "../../lib/errors.js";
 import type { Reloj } from "../../lib/reloj.js";
 
+/** F-10: catálogo de materias y materias que cada tutor declara en su perfil. */
 export class MateriasService {
   constructor(
     private readonly uow: UnidadDeTrabajo,
     private readonly reloj: Reloj,
   ) {}
 
-  /** Catalogo de materias o areas de tutoria. */
+  /** Catálogo completo de materias, en orden alfabético. */
   listarCatalogo(): Promise<Materia[]> {
     return this.uow.repos.materias.listarCatalogo();
   }
 
-  /** SWR-20: materias asociadas al perfil de un tutor. */
+  /** SWR-20: materias del perfil del tutor, en orden alfabético. */
   listarDeTutor(tutorId: string): Promise<Materia[]> {
     return this.uow.repos.materias.listarDeTutor(tutorId);
   }
 
   /**
    * SWR-20: reemplaza las materias del perfil del tutor. No permite quitar una
-   * materia con franjas vigentes publicadas, para que el perfil y la agenda coincidan.
+   * materia con franjas vigentes, para que el perfil y la agenda coincidan.
+   *
+   * @returns Las materias del perfil después del cambio.
+   * @throws ErrorDeNegocio 400 si alguna materia no existe en el catálogo.
+   * @throws ErrorDeNegocio 409 si se quita una materia con franjas vigentes.
    */
   async reemplazarDeTutor(tutorId: string, materiaIds: string[]): Promise<Materia[]> {
     const ids = [...new Set(materiaIds)];

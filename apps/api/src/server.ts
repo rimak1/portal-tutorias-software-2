@@ -2,16 +2,24 @@ import "dotenv/config";
 import { loadEnv } from "./config/env.js";
 import { buildApp } from "./app.js";
 
-async function main() {
+const SENALES_DE_CIERRE = ["SIGINT", "SIGTERM"] as const;
+
+async function main(): Promise<void> {
   const env = loadEnv();
   const app = await buildApp(env);
 
-  try {
-    await app.listen({ port: env.PORT, host: env.HOST });
-  } catch (error) {
-    app.log.error(error);
-    process.exit(1);
+  // Cierra el servidor y la conexión a la base de datos antes de terminar el proceso.
+  for (const senal of SENALES_DE_CIERRE) {
+    process.once(senal, () => {
+      app.log.info({ senal }, "Cerrando el servidor");
+      app.close().finally(() => process.exit(0));
+    });
   }
+
+  await app.listen({ port: env.PORT, host: env.HOST });
 }
 
-main();
+main().catch((error: unknown) => {
+  console.error("No se pudo iniciar el servidor:", error);
+  process.exit(1);
+});

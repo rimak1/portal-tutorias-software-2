@@ -23,7 +23,7 @@ function cita(estado: EstadoCita, extra: { inicioEnHoras?: number; conPropuesta?
   };
 }
 
-describe("acciones que ofrece una cita segun quien la mira (Strategy)", () => {
+describe("acciones que ofrece una cita según quien la mira", () => {
   describe("vista del estudiante", () => {
     it("una cita Pendiente o Aprobada se puede cancelar", () => {
       expect(accionesDisponibles(cita("PENDIENTE"), "estudiante", AHORA)).toEqual(["cancelar"]);

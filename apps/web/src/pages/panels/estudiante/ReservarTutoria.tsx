@@ -3,16 +3,18 @@ import { agruparPorTutor } from "../../../lib/agrupar-por-tutor";
 import { citasApi } from "../../../lib/api/citas";
 import { disponibilidadApi } from "../../../lib/api/disponibilidad";
 import { materiasApi } from "../../../lib/api/materias";
-import { mensajeDeError, useDatos } from "../../../lib/use-datos";
+import { EstadoDeCarga, MensajeError } from "../../../components/Mensajes";
+import { mensajeDeError } from "../../../lib/api-client";
+import { useDatos } from "../../../lib/use-datos";
 import { IndicadorDePasos, PasoConfirmar, PasoElegirFranja, PasoElegirTutor } from "./PasosDeReserva";
 import { RESERVA_INICIAL, reservaReducer } from "./reserva-wizard";
 
 /**
- * SWR-25: la reserva se completa en tres pasos (elegir tutor, elegir franja,
- * confirmar) y una sola operacion de escritura. Este componente solo
- * coordina: el orden de los pasos lo gobierna `reservaReducer`, cada paso es
- * un componente propio y el agrupado de franjas es una funcion pura.
- * SWR-06 y SWR-07: el servidor entrega las franjas ordenadas y filtradas.
+ * SWR-25: reserva de una tutoría en tres pasos (elegir tutor, elegir franja,
+ * confirmar) con una sola escritura al confirmar. Carga las franjas, que el
+ * servidor entrega filtradas por materia y ordenadas por fecha (SWR-06 y
+ * SWR-07), y avanza entre pasos con `reservaReducer`. Si la reserva falla
+ * (p. ej. otro estudiante tomó la franja), vuelve a elegir franja con la lista actualizada.
  */
 export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
   const [{ paso, materiaId, tutorId, franja, error }, despachar] = useReducer(reservaReducer, RESERVA_INICIAL);
@@ -39,27 +41,15 @@ export function ReservarTutoria({ onReservada }: { onReservada: () => void }) {
     }
   }
 
-  if (disponibilidad.error && !disponibilidad.datos) {
-    return (
-      <p role="alert" className="mensaje-error">
-        {disponibilidad.error}
-      </p>
-    );
-  }
-
   if (!disponibilidad.datos) {
-    return <p className="texto-cargando">Cargando disponibilidad...</p>;
+    return <EstadoDeCarga error={disponibilidad.error} texto="Cargando disponibilidad..." />;
   }
 
   return (
     <div className="reserva">
       <IndicadorDePasos paso={paso} />
 
-      {error && (
-        <p role="alert" className="mensaje-error">
-          {error}
-        </p>
-      )}
+      {error && <MensajeError>{error}</MensajeError>}
 
       {paso === 1 && (
         <PasoElegirTutor

@@ -6,7 +6,7 @@ export const materiaSchema = z.object({
 });
 export type Materia = z.infer<typeof materiaSchema>;
 
-/** SWR-20: un tutor asocia una o mas materias a su perfil. */
+/** SWR-20: un tutor asocia una o más materias a su perfil. */
 export const asociarMateriasSchema = z.object({
   materiaIds: z
     .array(z.string().uuid("Alguna de las materias seleccionadas no es válida."))

@@ -14,23 +14,24 @@ export type Participante = { rol: "ESTUDIANTE" | "TUTOR"; id: string };
 export const comoTutor = (id: string): Participante => ({ rol: "TUTOR", id });
 export const comoEstudiante = (id: string): Participante => ({ rol: "ESTUDIANTE", id });
 
+/** Una acción de un participante sobre una cita. */
 export interface Accion {
   citaId: string;
   actor: Participante;
-  /** Lo decide el estado actual de la cita (patron State); lanza si la accion no es valida. */
+  /** Pregunta al estado actual de la cita si admite la acción; lanza ErrorDeNegocio si no. */
   decidir: (estado: EstadoDeCita, contexto: ContextoCita) => Transicion;
-  /** Campos de la cita que cambian ademas del estado. */
+  /** Campos de la cita que cambian además del estado. */
   datos?: Omit<CamposDeCita, "estado" | "franjaId">;
-  /** Efectos propios de la accion, dentro de la misma transaccion. */
+  /** Escrituras propias de la acción, dentro de la misma transacción. */
   efectos?: (repos: Repositorios, cita: CitaConRelaciones) => Promise<void>;
 }
 
 /**
- * Template Method: el esqueleto comun de toda accion sobre una cita. Los pasos
- * que varian (que estado la admite y los efectos propios) los aporta cada
- * accion; el orden y la atomicidad no se pueden olvidar ni alterar. Es la unica
- * pieza que sabe bloquear, autorizar, aplicar y anunciar: los servicios de
- * estudiante y de tutor solo declaran sus acciones.
+ * Ejecuta las acciones sobre una cita con un mismo procedimiento, en una sola
+ * transacción: bloquea la cita, comprueba que el actor participe en ella, deja
+ * que su estado decida la transición, la aplica (liberando la franja si
+ * corresponde, RN-007) y la anuncia para el historial. Los servicios de
+ * estudiante y de tutor solo describen cada acción.
  */
 export class EjecutorDeTransiciones {
   constructor(
@@ -39,31 +40,33 @@ export class EjecutorDeTransiciones {
     private readonly reloj: Reloj,
   ) {}
 
+  /**
+   * @returns La cita como queda después de la acción.
+   * @throws ErrorDeNegocio 404 si la cita no existe o el actor no participa en ella.
+   * @throws ErrorDeNegocio 409 si el estado actual de la cita no admite la acción.
+   */
   ejecutar(accion: Accion): Promise<Cita> {
     return this.uow.ejecutar(async (repos) => {
-      // 1. Bloquear la cita: acciones simultaneas se serializan y se revalida el estado ya con el bloqueo.
+      // El bloqueo serializa acciones simultáneas sobre la misma cita: el estado se lee ya bloqueado.
       const cita = await repos.citas.bloquearYCargar(accion.citaId);
 
-      // 2. Autorizar: solo quien participa en la cita puede actuar; lo ajeno se reporta como inexistente.
+      // Una cita ajena se reporta como inexistente, para no revelar que existe.
       if (!cita || !this.participa(cita, accion.actor)) {
         throw noEncontrado(MENSAJE_CITA_INEXISTENTE);
       }
 
-      // 3. El estado actual decide si la accion es valida y a donde lleva.
       const transicion = accion.decidir(estadoDe(cita.estado), {
         tienePropuestaPendiente: cita.propuestas.length > 0,
         inicioFranja: cita.franja.fechaInicio,
         ahora: this.reloj.ahora(),
       });
 
-      // 4. Aplicar el cambio y, si corresponde, liberar la franja (RN-007).
       await repos.citas.actualizar(cita.id, { estado: transicion.hacia, ...accion.datos });
       if (transicion.liberaFranja) {
         await repos.franjas.cambiarEstado(cita.franja.id, "LIBRE");
       }
       await accion.efectos?.(repos, cita);
 
-      // 5. Anunciar el cambio (bitacora y, mas adelante, notificaciones) dentro de la misma transaccion.
       await this.cambios.publicar(
         { citaId: cita.id, estadoAnterior: cita.estado, estadoNuevo: transicion.hacia, actorId: accion.actor.id, detalle: transicion.detalle },
         repos,

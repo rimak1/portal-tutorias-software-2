@@ -10,6 +10,7 @@ export type AccionDeCita =
   | "aceptarPropuesta"
   | "rechazarPropuesta";
 
+/** Desde qué lado se mira una cita. */
 export type Vista = "estudiante" | "tutor";
 
 /** Acciones que se ejecutan con un solo clic, sin datos adicionales. */
@@ -22,9 +23,9 @@ export function yaInicio(cita: Cita, ahora: Date): boolean {
 type Regla = (cita: Cita, ahora: Date) => AccionDeCita[];
 
 /**
- * Patron Strategy: que acciones ofrece una cita depende de quien la mira. Cada
- * vista aporta su regla y la interfaz solo las dibuja, de modo que la logica
- * se prueba sin renderizar nada. Espeja las transiciones del backend (RN-006).
+ * Acciones que se ofrecen en cada vista según el estado de la cita. Deben
+ * coincidir con las transiciones que admite el servidor (RN-006): si el
+ * servidor rechaza una acción, la interfaz muestra su mensaje.
  */
 const REGLAS: Record<Vista, Regla> = {
   estudiante: (cita) => {
@@ -42,7 +43,7 @@ export function accionesDisponibles(cita: Cita, vista: Vista, ahora: Date = new 
   return REGLAS[vista](cita, ahora);
 }
 
-/** Cada accion simple es un comando: se ejecuta sobre una cita sin que quien la dispara sepa como. */
+/** Llamada a la API de cada acción simple. */
 export const EJECUTORES: Record<AccionSimple, (citaId: string) => Promise<unknown>> = {
   aprobar: citasApi.aprobar,
   finalizar: citasApi.finalizar,
@@ -50,6 +51,10 @@ export const EJECUTORES: Record<AccionSimple, (citaId: string) => Promise<unknow
   aceptarPropuesta: citasApi.aceptarPropuesta,
   rechazarPropuesta: citasApi.rechazarPropuesta,
 };
+
+export function esAccionSimple(accion: AccionDeCita): accion is AccionSimple {
+  return accion in EJECUTORES;
+}
 
 export const ETIQUETAS: Record<AccionDeCita, string> = {
   aprobar: "Aprobar",

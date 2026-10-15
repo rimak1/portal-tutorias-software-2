@@ -12,7 +12,7 @@ const CAMBIO: CambioDeEstadoDeCita = {
 
 const repos = {} as Repositorios;
 
-describe("CambiosDeCita (patron Observer)", () => {
+describe("CambiosDeCita: suscripción a los cambios de estado", () => {
   it("avisa a cada suscriptor, en el orden en que se suscribieron, con el cambio y los repositorios de la transaccion", async () => {
     const llamadas: string[] = [];
     const cambios = new CambiosDeCita();

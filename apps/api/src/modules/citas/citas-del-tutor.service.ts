@@ -13,12 +13,17 @@ export class CitasDelTutorService {
     private readonly reloj: Reloj,
   ) {}
 
-  /** SWR-14: el tutor ve el estado actual de las citas sobre sus franjas. */
+  /** SWR-14: citas sobre las franjas del tutor en su estado actual, de la más reciente a la más antigua. */
   async listar(tutorId: string): Promise<Cita[]> {
     return (await this.uow.repos.citas.listarDeTutor(tutorId)).map(aCita);
   }
 
-  /** SWR-10: el tutor aprueba una solicitud pendiente. */
+  /**
+   * SWR-10: aprueba una solicitud pendiente.
+   *
+   * @throws ErrorDeNegocio 404 si la cita no existe o no es sobre una franja del tutor.
+   * @throws ErrorDeNegocio 409 si la cita no está Pendiente o espera respuesta a una propuesta.
+   */
   aprobar(tutorId: string, citaId: string): Promise<Cita> {
     return this.transiciones.ejecutar({
       citaId,
@@ -27,7 +32,14 @@ export class CitasDelTutorService {
     });
   }
 
-  /** SWR-12 y SWR-19: rechazo con motivo obligatorio; la cita queda Rechazada y la franja se libera (RN-007). */
+  /**
+   * SWR-12 y SWR-19: rechaza una solicitud con motivo obligatorio; la cita queda
+   * Rechazada y la franja se libera (RN-007).
+   *
+   * @throws ErrorDeNegocio 400 si el motivo está vacío.
+   * @throws ErrorDeNegocio 404 si la cita no existe o no es sobre una franja del tutor.
+   * @throws ErrorDeNegocio 409 si la cita no está Pendiente o espera respuesta a una propuesta.
+   */
   async rechazar(tutorId: string, citaId: string, motivo: string): Promise<Cita> {
     const motivoLimpio = motivo.trim();
     if (!motivoLimpio) {
@@ -42,9 +54,12 @@ export class CitasDelTutorService {
   }
 
   /**
-   * SWR-11: el tutor propone otra de sus franjas libres. La franja original se
-   * libera (la libera la transicion) y la nueva queda reservada mientras el
-   * estudiante decide.
+   * SWR-11: propone otra franja libre del tutor. La franja original se libera y
+   * la nueva queda reservada mientras el estudiante responde.
+   *
+   * @throws ErrorDeNegocio 400 si la franja propuesta es la actual o ya comenzó.
+   * @throws ErrorDeNegocio 404 si la cita o la franja propuesta no existen o no son del tutor.
+   * @throws ErrorDeNegocio 409 si la cita no está Pendiente, ya tiene una propuesta o la franja no está libre.
    */
   reprogramar(tutorId: string, citaId: string, nuevaFranjaId: string): Promise<Cita> {
     return this.transiciones.ejecutar({
@@ -73,7 +88,12 @@ export class CitasDelTutorService {
     });
   }
 
-  /** SWR-13: el tutor finaliza una cita Aprobada desde su hora de inicio. */
+  /**
+   * SWR-13: finaliza una cita Aprobada a partir de su hora de inicio.
+   *
+   * @throws ErrorDeNegocio 404 si la cita no existe o no es sobre una franja del tutor.
+   * @throws ErrorDeNegocio 409 si la cita no está Aprobada o aún no ha comenzado.
+   */
   finalizar(tutorId: string, citaId: string): Promise<Cita> {
     return this.transiciones.ejecutar({
       citaId,

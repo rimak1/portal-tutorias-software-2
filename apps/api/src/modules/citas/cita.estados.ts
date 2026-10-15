@@ -1,17 +1,20 @@
 import type { EstadoCita } from "@portal-tutorias/shared";
 import { conflicto } from "../../lib/errors.js";
 
-/** Lo que un estado necesita saber de la cita para decidir si una accion es valida. */
+/** Datos de la cita que un estado necesita para decidir si admite una acción. */
 export interface ContextoCita {
   tienePropuestaPendiente: boolean;
   inicioFranja: Date;
   ahora: Date;
 }
 
-/** Resultado de una accion valida: a que estado pasa la cita y si libera la franja que ocupa (RN-007). */
+/** Resultado de una acción admitida. */
 export interface Transicion {
+  /** Estado al que pasa la cita. */
   hacia: EstadoCita;
+  /** RN-007: la franja que ocupa la cita vuelve a quedar libre. */
   liberaFranja: boolean;
+  /** Texto que se guarda en el historial de la cita. */
   detalle: string;
 }
 
@@ -19,10 +22,9 @@ const MENSAJE_SIN_PROPUESTA = "Esta cita no tiene una propuesta de reprogramaci�
 const MENSAJE_CON_PROPUESTA = "Esta solicitud tiene una propuesta de reprogramación esperando respuesta del estudiante.";
 
 /**
- * Patron State (RN-006): cada estado de la cita decide que acciones admite y
- * a donde llevan. Por defecto una accion es invalida; cada estado concreto
- * sobrescribe solo las que permite, asi que agregar un estado o una transicion
- * no obliga a tocar condicionales dispersos por el servicio.
+ * Ciclo de vida de la cita (RN-006). Cada estado decide qué acciones admite y a
+ * qué estado llevan. Por defecto toda acción se rechaza con 409; cada estado
+ * concreto sobrescribe solo las que permite.
  */
 export abstract class EstadoDeCita {
   abstract readonly nombre: EstadoCita;
@@ -112,7 +114,7 @@ class EstadoAprobada extends EstadoDeCita {
   }
 }
 
-/** Rechazada, Cancelada y Finalizada son terminales: no admiten ninguna accion. */
+/** Rechazada, Cancelada y Finalizada son terminales: no admiten ninguna acción. */
 class EstadoTerminal extends EstadoDeCita {
   constructor(readonly nombre: EstadoCita) {
     super();

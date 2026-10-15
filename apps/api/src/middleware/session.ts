@@ -1,17 +1,22 @@
 import fp from "fastify-plugin";
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import type { Rol } from "@portal-tutorias/shared";
-import type { Env } from "../config/env.js";
-import { verifySessionToken } from "../lib/token.js";
+import { noAutenticado } from "../lib/errors.js";
+import type { TokensDeSesion } from "../modules/auth/auth.puertos.js";
 import type { ConsultaDeSesion } from "../modules/usuarios/usuarios.puertos.js";
-
-export type ConfigDeSesionHttp = Pick<Env, "SESSION_COOKIE_NAME" | "SESSION_SECRET">;
+import type { CookieDeSesion } from "./cookie-de-sesion.js";
 
 export interface UsuarioAutenticado {
   id: string;
   correo: string;
   nombre: string;
   rol: Rol;
+}
+
+export interface OpcionesDeSesion {
+  cookie: CookieDeSesion;
+  tokens: Pick<TokensDeSesion, "verificar">;
+  usuarios: ConsultaDeSesion;
 }
 
 declare module "fastify" {
@@ -23,36 +28,49 @@ declare module "fastify" {
   }
 }
 
-/**
- * Middleware central de sesion y RBAC (RN-001): valida la cookie firmada y,
- * en cada peticion, recarga rol y estado de la cuenta desde la base de datos
- * para que una cuenta desactivada pierda el acceso de inmediato.
- */
-const sessionPlugin: FastifyPluginAsync<{ env: ConfigDeSesionHttp; usuarios: ConsultaDeSesion }> = async (fastify, opts) => {
-  const { env, usuarios } = opts;
+const SIN_SESION = "No hay una sesión activa.";
 
+/**
+ * Usuario autenticado de la petición. Solo debe usarse en rutas protegidas con
+ * `requireAuth`, que es quien lo asigna.
+ *
+ * @throws ErrorDeNegocio 401 si la ruta no exigió autenticación.
+ */
+export function usuarioDe(request: FastifyRequest): UsuarioAutenticado {
+  if (!request.usuario) {
+    throw noAutenticado(SIN_SESION);
+  }
+  return request.usuario;
+}
+
+/**
+ * Sesión y control de acceso por rol (RN-001). `requireAuth(roles)` valida la
+ * cookie firmada y, en cada petición, vuelve a leer el rol y el estado de la
+ * cuenta en la base de datos: una cuenta desactivada pierde el acceso de
+ * inmediato, aunque su cookie siga vigente.
+ */
+const sessionPlugin: FastifyPluginAsync<OpcionesDeSesion> = async (fastify, { cookie, tokens, usuarios }) => {
   fastify.decorate("requireAuth", (rolesPermitidos?: Rol[]) => {
     return async (request: FastifyRequest, reply: FastifyReply) => {
-      const token = request.cookies[env.SESSION_COOKIE_NAME];
+      const token = cookie.leer(request);
       if (!token) {
-        return reply.unauthorized("No hay una sesion activa.");
+        return reply.unauthorized(SIN_SESION);
       }
 
-      const payload = verifySessionToken(env, token);
-      if (!payload) {
-        reply.clearCookie(env.SESSION_COOKIE_NAME, { path: "/" });
-        return reply.unauthorized("La sesion no es valida o expiro.");
+      const usuarioId = tokens.verificar(token);
+      if (!usuarioId) {
+        cookie.borrar(reply);
+        return reply.unauthorized("La sesión no es válida o expiró.");
       }
 
-      const usuario = await usuarios.buscarDatosDeSesion(payload.sub);
-
+      const usuario = await usuarios.buscarDatosDeSesion(usuarioId);
       if (!usuario || !usuario.activo) {
-        reply.clearCookie(env.SESSION_COOKIE_NAME, { path: "/" });
-        return reply.unauthorized("La cuenta no existe o esta desactivada.");
+        cookie.borrar(reply);
+        return reply.unauthorized("La cuenta no existe o está desactivada.");
       }
 
       if (rolesPermitidos && rolesPermitidos.length > 0 && !rolesPermitidos.includes(usuario.rol)) {
-        return reply.forbidden("Tu rol no tiene acceso a esta funcion.");
+        return reply.forbidden("Tu rol no tiene acceso a esta función.");
       }
 
       request.usuario = {

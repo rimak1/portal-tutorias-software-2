@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { EstadoVacio } from "../../../components/EstadoVacio";
+import { IconoLista } from "../../../components/Iconos";
+import { EstadoDeCarga, MensajeError } from "../../../components/Mensajes";
 import { TarjetaCita } from "../../../components/TarjetaCita";
-import { EJECUTORES, ETIQUETAS, accionesDisponibles, claseDeBoton, type AccionSimple } from "../../../lib/acciones-cita";
+import { EJECUTORES, ETIQUETAS, accionesDisponibles, claseDeBoton, esAccionSimple } from "../../../lib/acciones-cita";
 import { citasApi } from "../../../lib/api/citas";
 import { useAccionesDeCita } from "../../../lib/use-acciones-cita";
 import { useDatos } from "../../../lib/use-datos";
@@ -10,19 +12,10 @@ import { PanelDeRechazo } from "./PanelDeRechazo";
 
 type PanelAbierto = { citaId: string; tipo: "rechazar" | "reprogramar" };
 
-const ICONO_LISTA = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M8 6.5h11M8 12h11M8 17.5h11" strokeLinecap="round" />
-    <circle cx="4.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-    <circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none" />
-    <circle cx="4.5" cy="17.5" r="1" fill="currentColor" stroke="none" />
-  </svg>
-);
-
 /**
- * SWR-10 a SWR-14 y SWR-19: lista las solicitudes del tutor y ofrece, segun las
- * reglas por vista, aprobar, rechazar con motivo, reprogramar y finalizar. Los
- * formularios de rechazo y reprogramacion son componentes propios.
+ * SWR-10 a SWR-14 y SWR-19: solicitudes recibidas por el tutor. Aprobar y
+ * finalizar se ejecutan con un clic; rechazar y reprogramar abren un panel
+ * para pedir el motivo o la nueva franja.
  */
 export function MisCitasTutor() {
   const { datos: citas, error, recargar } = useDatos(citasApi.listar);
@@ -33,30 +26,19 @@ export function MisCitasTutor() {
     if (await ejecutar(citaId, accion)) setAbierto(null);
   }
 
-  if (error && !citas) {
-    return (
-      <p role="alert" className="mensaje-error">
-        {error}
-      </p>
-    );
-  }
   if (!citas) {
-    return <p className="texto-cargando">Cargando tus tutorías...</p>;
+    return <EstadoDeCarga error={error} texto="Cargando tus tutorías..." />;
   }
 
   const ahora = new Date();
 
   return (
     <div className="lista-citas">
-      {mensaje && (
-        <p role="alert" className="mensaje-error">
-          {mensaje}
-        </p>
-      )}
+      {mensaje && <MensajeError>{mensaje}</MensajeError>}
 
       {citas.length === 0 ? (
         <EstadoVacio
-          icono={ICONO_LISTA}
+          icono={<IconoLista />}
           titulo="Aún no tienes solicitudes"
           texto="Cuando un estudiante reserve una de tus franjas, la solicitud aparecerá aquí para que la apruebes, la rechaces o propongas otro horario."
         />
@@ -84,8 +66,8 @@ export function MisCitasTutor() {
                       className={claseDeBoton(accion)}
                       disabled={ocupada}
                       onClick={() => {
-                        if (accion === "rechazar" || accion === "reprogramar") setAbierto({ citaId: cita.id, tipo: accion });
-                        else void ejecutar(cita.id, () => EJECUTORES[accion as AccionSimple](cita.id));
+                        if (esAccionSimple(accion)) void ejecutar(cita.id, () => EJECUTORES[accion](cita.id));
+                        else setAbierto({ citaId: cita.id, tipo: accion });
                       }}
                     >
                       {ETIQUETAS[accion]}
