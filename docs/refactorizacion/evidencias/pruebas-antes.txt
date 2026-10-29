@@ -1,0 +1,21 @@
+ RUN  v2.1.9 C:/Users/sotop/OneDrive/Desktop/Portal Tutorias/apps/api
+ ✓ test/token.test.ts > sesion (cookie firmada) > emite y valida un token de sesion para el usuario correcto
+ ✓ test/token.test.ts > sesion (cookie firmada) > rechaza un token manipulado
+ ✓ test/token.test.ts > sesion (cookie firmada) > rechaza un token firmado con otro secreto
+ ✓ test/token.test.ts > token de restablecimiento (RF-003, un solo uso) > es valido mientras la contrasena no ha cambiado
+ ✓ test/token.test.ts > token de restablecimiento (RF-003, un solo uso) > la huella cambia si la contrasena cambia, invalidando el enlace anterior
+ ✓ test/hash.test.ts > hashPassword / verifyPassword (RNF-001) > nunca guarda la contrasena en texto plano
+ ✓ test/hash.test.ts > hashPassword / verifyPassword (RNF-001) > verifica correctamente una contrasena valida
+ ✓ test/hash.test.ts > hashPassword / verifyPassword (RNF-001) > rechaza una contrasena incorrecta
+ ✓ test/hash.test.ts > hashPassword / verifyPassword (RNF-001) > no lanza excepcion con un hash corrupto
+ ✓ test/autenticacion.test.ts > AuthService.login (SWR-01) > emite el token y devuelve el rol de la cuenta
+ ✓ test/autenticacion.test.ts > AuthService.login (SWR-01) > correo inexistente, contrasena incorrecta y cuenta desactivada responden exactamente lo mismo
+ ✓ test/autenticacion.test.ts > RecuperacionDePasswordService (SWR-18) > envia el enlace a una cuenta activa y no a una inexistente o desactivada
+ ✓ test/autenticacion.test.ts > RecuperacionDePasswordService (SWR-18) > cualquier EmailSender es intercambiable sin cambiar lo que observa quien pide el enlace > un proveedor caido no hace fallar la solicitud: se registra el error y el resultado es igual al de un correo inexistente
+ ✓ test/autenticacion.test.ts > RecuperacionDePasswordService (SWR-18) > restablecer > con un token valido define la nueva contrasena
+ ✓ test/autenticacion.test.ts > RecuperacionDePasswordService (SWR-18) > restablecer > un token manipulado o de una cuenta desactivada se rechaza con 400
+ ✓ test/autenticacion.test.ts > RecuperacionDePasswordService (SWR-18) > restablecer > el enlace es de un solo uso
+ Test Files  3 passed (3)
+      Tests  16 passed (16)
+   Start at  16:04:38
+   Duration  957ms (transform 121ms, setup 0ms, collect 359ms, tests 623ms, environment 1ms, prepare 461ms)
