@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import type { EstadoFranja } from "@portal-tutorias/shared";
 import type { Cliente } from "../../db/cliente.js";
-import { violaExclusion } from "../../db/errores-postgres.js";
+import { esInterbloqueo, violaExclusion } from "../../db/errores-postgres.js";
 import {
   FranjaTraslapada,
   type DatosDeFranja,
@@ -19,12 +19,19 @@ const INCLUDE_FRANJA = {
   tutor: { select: { id: true, nombre: true } },
 } satisfies Prisma.DisponibilidadInclude;
 
-/** Ejecuta una escritura y traduce la violación de la restricción de traslape a FranjaTraslapada. */
+/**
+ * Ejecuta una escritura y traduce la violación de la restricción de traslape a FranjaTraslapada.
+ *
+ * Con varias escrituras simultáneas que se cruzan, la restricción de exclusión
+ * hace que cada una espere a las demás; PostgreSQL rompe ese ciclo abortando
+ * alguna con un interbloqueo en lugar de la violación. Es el mismo conflicto,
+ * porque la única espera de una escritura aislada sobre la franja es esa verificación.
+ */
 async function sinTraslape<T>(escritura: Promise<T>): Promise<T> {
   try {
     return await escritura;
   } catch (error) {
-    if (violaExclusion(error, RESTRICCION_SIN_TRASLAPE)) throw new FranjaTraslapada();
+    if (violaExclusion(error, RESTRICCION_SIN_TRASLAPE) || esInterbloqueo(error)) throw new FranjaTraslapada();
     throw error;
   }
 }

@@ -5,6 +5,7 @@
  */
 
 const CODIGO_EXCLUSION = "23P01";
+const CODIGO_INTERBLOQUEO = "40P01";
 const CODIGO_UNICIDAD = "23505";
 const CODIGO_UNICIDAD_PRISMA = "P2002";
 
@@ -16,6 +17,11 @@ function textoDe(error: unknown): string {
 export function violaExclusion(error: unknown, restriccion: string): boolean {
   const texto = textoDe(error);
   return texto.includes(restriccion) || texto.includes(CODIGO_EXCLUSION);
+}
+
+/** Indica si PostgreSQL abortó la sentencia para resolver un interbloqueo. */
+export function esInterbloqueo(error: unknown): boolean {
+  return textoDe(error).includes(CODIGO_INTERBLOQUEO);
 }
 
 /** Indica si `error` proviene de violar el índice único `indice`. */
