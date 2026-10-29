@@ -4,7 +4,7 @@
 |---|---|
 | Fecha | 2026-10-29 |
 | Commit analizado | `cd667fc` (rama `main`) |
-| Estado del documento | Diagnóstico completo · intervención **seleccionada, pendiente de implementar** |
+| Estado del documento | Diagnóstico completo · intervención H-02 **implementada y verificada** (`29d6520`) |
 
 ---
 
@@ -154,7 +154,7 @@ try {
 | **Impacto y riesgo** | Mediana de 20 intentos, ambos con 401: **43,3 ms** con correo registrado frente a **0,0 ms** con correo inexistente. Se manifiesta en todos los entornos, sin depender de la configuración. Es el endpoint más expuesto del sistema, lo usan los cuatro roles y no tiene límite de intentos (Informe §10.3). |
 | **Acción propuesta** | Ejecutar siempre la verificación argon2. Si no hay cuenta, verificar contra un hash ficticio calculado una sola vez. Ver el diseño en la sección 5. |
 | **Verificación** | (1) Las pruebas existentes de `AuthService.login` deben pasar sin cambios. (2) Prueba nueva con un `CifradoDePasswords` espía: `verificar` debe llamarse exactamente una vez también con un correo inexistente. (3) Repetir la medición: la diferencia entre los dos casos debe ser menor a la variación natural de argon2. |
-| **Estado** | **Seleccionado** |
+| **Estado** | **Verificado** (implementado en `29d6520`; ver secciones 5 y 6) |
 
 ```ts
 // auth.service.ts:22-26
@@ -222,7 +222,7 @@ async login(correo: string, password: string) {
 }
 ```
 
-### 5.2 Diseño después (propuesto)
+### 5.2 Diseño después (implementado en `29d6520`)
 
 ```ts
 /** Contraseña sin dueño; su hash iguala el costo de verificar cuando el correo no existe. */
@@ -235,8 +235,6 @@ export class AuthService {
 
   async login(correo: string, password: string) {
     const cuenta = await this.cuentas.buscarPorCorreo(correo);
-
-    // Se verifica siempre, aun sin cuenta, para que el tiempo de respuesta no revele qué correos existen.
     const hash = cuenta?.passwordHash ?? (await this.obtenerHashFicticio());
     const coincide = await this.cifrado.verificar(hash, password);
 
@@ -246,11 +244,28 @@ export class AuthService {
     ...
   }
 
+  /** Se calcula una sola vez, con el mismo cifrado (y costo) que los hashes reales. */
   private obtenerHashFicticio(): Promise<string> {
     this.hashFicticio ??= this.cifrado.cifrar(PASSWORD_FICTICIA);
     return this.hashFicticio;
   }
 }
+```
+
+```mermaid
+flowchart LR
+  subgraph Antes
+    A1[buscarPorCorreo] -->|sin cuenta| A3[401 inmediato]
+    A1 -->|con cuenta| A2[argon2.verify] --> A4[401 / token]
+  end
+  subgraph Después
+    B1[buscarPorCorreo] --> B2{¿cuenta?}
+    B2 -->|sí| B3[hash real]
+    B2 -->|no| B4[hash ficticio memoizado]
+    B3 --> B5[argon2.verify]
+    B4 --> B5
+    B5 --> B6[401 / token]
+  end
 ```
 
 **Decisiones de diseño:**
@@ -263,9 +278,12 @@ export class AuthService {
 
 | Archivo | Cambio |
 |---|---|
-| `apps/api/src/modules/auth/auth.service.ts` | Verificación incondicional y hash ficticio memoizado. |
-| `apps/api/test/autenticacion.test.ts` | Prueba nueva: `verificar` se invoca también con un correo inexistente. |
+| `apps/api/src/modules/auth/auth.service.ts` | Verificación incondicional y hash ficticio memoizado (+16 / −1 líneas). |
+| `apps/api/test/autenticacion.test.ts` | Prueba nueva: `verificar` se invoca también con un correo inexistente (+12 líneas). |
 | `docs/refactorizacion/evidencias/linea-base-despues.txt` | Salida de la medición después del cambio. |
+| `docs/refactorizacion/evidencias/pruebas-despues.txt` | Salida de las pruebas después del cambio. |
+
+No cambian la firma de `login`, los puertos, las rutas, el frontend ni el contrato de la API.
 
 ---
 
@@ -293,18 +311,31 @@ H-03 dos restablecimientos simultáneos con el mismo token
 
 **Observación.** Las 16 pruebas existentes pasan con los tres defectos presentes. Comprueban que el **contenido** de la respuesta sea igual y que el enlace no se reutilice **en secuencia**, pero no cubren tiempo ni concurrencia.
 
-### 6.2 Verificación después del cambio (pendiente)
+### 6.2 Verificación después del cambio
 
-| Criterio de aceptación | Resultado |
-|---|---|
-| Las 16 pruebas anteriores siguen pasando sin modificarse. | Pendiente |
-| La prueba nueva (`verificar` se llama con un correo inexistente) pasa. | Pendiente |
-| En la medición de H-02, la diferencia entre correo registrado e inexistente es del orden de la variación de argon2 (menos de 10 ms). | Pendiente |
-| La suite completa de `apps/api` pasa con PostgreSQL (CI de GitHub Actions). | Pendiente |
+| Criterio de aceptación | Resultado | Evidencia |
+|---|---|---|
+| Las 16 pruebas anteriores siguen pasando sin modificarse. | **Cumple:** 17 de 17 pasan (16 anteriores + 1 nueva) | [evidencias/pruebas-despues.txt](evidencias/pruebas-despues.txt) |
+| La prueba nueva pasa con el cambio y **falla sin él**. | **Cumple.** Con el `auth.service.ts` anterior falla con `expected "verifyPassword" to be called 3 times, but got 1 times`. | Ejecución manual con el archivo de `8338ae7` |
+| En la medición de H-02, la diferencia entre correo registrado e inexistente es menor a 10 ms. | **Cumple:** 3,1 ms, 1,3 ms y 7,4 ms en tres corridas (antes: 43,3 ms) | [evidencias/linea-base-despues.txt](evidencias/linea-base-despues.txt) |
+| `npm run typecheck` y `npm run lint` en `apps/api` sin errores. | **Cumple** | Salida de la ejecución local |
+| La suite completa de `apps/api` pasa con PostgreSQL (CI de GitHub Actions). | **Pendiente:** se verifica al subir los commits a `main` | — |
+
+Comparación de la medición de H-02 (mediana de 20 intentos):
+
+| | Correo registrado | Correo inexistente | Diferencia |
+|---|--:|--:|--:|
+| Antes (`8338ae7`) | 43,34 ms | 0,00 ms | **43,34 ms** |
+| Después (`29d6520`), corrida 1 | 53,70 ms | 50,60 ms | 3,10 ms |
+| Después, corrida 2 | 50,96 ms | 49,63 ms | 1,33 ms |
+| Después, corrida 3 | 53,22 ms | 45,81 ms | 7,41 ms |
+
+**Lectura de los resultados.** La rama «sin cuenta» ahora cuesta lo mismo que la rama «con cuenta», y la diferencia restante es la variación natural de argon2 entre corridas. Que el caso registrado pase de 43 ms a unos 52 ms no se debe al cambio, porque esa rama ejecuta el mismo código que antes: es variación de carga de la máquina entre sesiones de medición. H-01 y H-03 siguen igual (311 ms frente a 0 ms; 2 de 2), como se esperaba, porque no formaban parte de esta intervención.
 
 ### 6.3 Limitaciones
 
-- **Sin base de datos local.** Docker no estaba en ejecución, así que no se corrieron las pruebas de rutas e integración que necesitan PostgreSQL (`auth.routes.test.ts`, `auth.restablecer.test.ts`, etc.). Se ejecutarán en el CI.
+- **Sin base de datos local.** Docker no estaba en ejecución, así que no se corrieron las pruebas de rutas e integración que necesitan PostgreSQL (`auth.routes.test.ts`, `auth.restablecer.test.ts`, etc.). El cambio no toca rutas ni repositorios, pero esas pruebas se ejecutarán en el CI.
+- **Tiempo uniforme, no constante.** El cambio iguala el trabajo de las dos ramas, pero no garantiza un tiempo constante: buscar en la base de datos un correo existente o inexistente podría tardar distinto. No se midió por la falta de base de datos local; se espera que sea despreciable frente a los ~50 ms de argon2.
 - **Mediciones en proceso**, sin red ni HTTP. Muestran la diferencia del caso de uso; sobre la red la diferencia sigue existiendo, aunque con más ruido.
 - **H-01 usa un SMTP simulado** (300 ms), porque el repositorio no incluye un servidor SMTP de pruebas.
 - **H-03 usa un repositorio en memoria.** En PostgreSQL la carrera depende del intercalado real de las transacciones. El análisis del código muestra que tampoco hay protección allí (no hay transacción ni escritura condicional), pero no se reprodujo contra la base de datos.
@@ -345,6 +376,8 @@ H-03 dos restablecimientos simultáneos con el mismo token
 | Etapa | Commit | Enlace |
 |---|---|---|
 | Base analizada | `cd667fc` | [cd667fc](https://github.com/rimak1/portal-tutorias-software-2/commit/cd667fc) |
-| Diagnóstico (este documento y `evidencias/`) | *pendiente* | — |
-| Intervención H-02 | *pendiente* | — |
-| Evidencia después | *pendiente* | — |
+| Diagnóstico (este documento y evidencias «antes») | `8338ae7` | [8338ae7](https://github.com/rimak1/portal-tutorias-software-2/commit/8338ae7) |
+| Intervención H-02, prueba nueva y evidencias «después» | `29d6520` | [29d6520](https://github.com/rimak1/portal-tutorias-software-2/commit/29d6520) |
+| Actualización de este documento con los resultados | El commit que contiene esta versión del archivo (`git log -1 -- docs/refactorizacion/DIAGNOSTICO_REFACTORIZACION.md`) | — |
+
+Todos los commits están en la rama `main`. Los enlaces de `29d6520` en adelante funcionan una vez que se suben a GitHub (`git push`).

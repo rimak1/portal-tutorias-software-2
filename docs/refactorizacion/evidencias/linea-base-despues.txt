@@ -1,0 +1,8 @@
+H-02 login (mediana de 20 intentos, ambos responden 401)
+  correo registrado:   53.70 ms
+  correo inexistente:  50.60 ms
+H-01 /auth/recuperar con SMTP simulado de 300 ms (ambos responden { ok: true })
+  correo registrado:   310.80 ms
+  correo inexistente:  0.00 ms
+H-03 dos restablecimientos simultáneos con el mismo token
+  exitosos: 2 de 2 (lo esperado por RF-003 «un solo uso» es 1)

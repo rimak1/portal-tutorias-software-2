@@ -72,6 +72,18 @@ describe("AuthService.login (SWR-01)", () => {
     expect(incorrecta).toEqual(inexistente);
     expect(inactiva).toEqual(inexistente);
   });
+
+  it("verifica la contrasena aun con un correo inexistente, para que el tiempo no revele que cuentas existen", async () => {
+    const verificar = vi.spyOn(cifradoArgon2, "verificar");
+    const auth = authCon(cuentas);
+
+    await mensajeDe(auth.login("nadie@uq.edu.co", "ClaveActual123"));
+    await mensajeDe(auth.login("tampoco@uq.edu.co", "ClaveActual123"));
+    await mensajeDe(auth.login("activa@uq.edu.co", "otra"));
+
+    expect(verificar).toHaveBeenCalledTimes(3);
+    verificar.mockRestore();
+  });
 });
 
 describe("RecuperacionDePasswordService (SWR-18)", () => {
