@@ -6,17 +6,90 @@
 | Commit analizado | `cd667fc` (rama `main`) |
 | Estado del documento | Diagnóstico completo · intervención H-02 **implementada y verificada** (`29d6520`) |
 
+**Contenido:** [1. Contexto](#1-contexto) · [2. Arquitectura real](#2-arquitectura-real) · [3. Hallazgos](#3-hallazgos) · [4. Priorización](#4-priorización) · [5. Intervención](#5-intervención) · [6. Verificación](#6-verificación) · [7. Cierre](#7-cierre) · [8. Git](#8-git)
+
+**Resumen.** Se analizó la funcionalidad de autenticación y recuperación de acceso (F-01). La arquitectura respeta la separación de capas y los principios SOLID, pero se encontraron tres defectos de lógica:
+
+- El inicio de sesión revela por tiempo qué correos están registrados (**H-02**).
+- La solicitud de recuperación también lo revela por tiempo (**H-01**).
+- El enlace de restablecimiento admite dos usos simultáneos (**H-03**).
+
+Se priorizó e implementó H-02: la diferencia de tiempo entre un correo registrado y uno inexistente bajó de **43,3 ms a menos de 8 ms**. Las pruebas existentes se conservaron y se agregó una prueba de regresión.
+
 ---
 
 ## 1. Contexto
 
-**Equipo.** Juan Esteban Soto, Vanessa Henao y Miguel Marulanda. Universidad del Quindío, Ingeniería de Software II.
+### 1.1 Equipo y repositorio
 
-**Repositorio.** [rimak1/portal-tutorias-software-2](https://github.com/rimak1/portal-tutorias-software-2). Es un monorepo con `apps/api` (Fastify + Prisma + PostgreSQL), `apps/web` (React + Vite) y `packages/shared` (esquemas Zod compartidos).
+| Campo | Valor |
+|---|---|
+| Equipo | Juan Esteban Soto, Vanessa Henao y Miguel Marulanda |
+| Institución | Universidad del Quindío, programa de Ingeniería de Software (Ingeniería de Software II) |
+| Repositorio | [rimak1/portal-tutorias-software-2](https://github.com/rimak1/portal-tutorias-software-2) |
+| Fuentes | Plan de Requisitos 2026 v3, Informe de Arquitectura de Software v2.0 (octubre de 2026) y el código fuente |
 
-**Funcionalidad analizada.** F-01, *Autenticación y control de acceso por rol*, junto con el flujo de recuperación de contraseña que la acompaña en el Plan de Requisitos. Es la puerta de entrada a toda la funcionalidad protegida y la que más directamente responde a BR-05 (seguridad y confidencialidad).
+### 1.2 El proyecto
 
-**Requisitos relacionados** (Plan de Requisitos 2026 v3):
+El **Portal de Tutorías Académicas** reemplaza la coordinación informal de tutorías (mensajes y llamadas entre estudiantes y tutores), que no deja registro, no evita choques de horario y no permite saber cuántas tutorías se hicieron. El portal lo resuelve así:
+
+- El **tutor** registra sus materias y publica franjas de disponibilidad.
+- El **estudiante** consulta las franjas vigentes, las filtra por materia y reserva una en tres pasos.
+- La reserva crea una **cita** en estado Pendiente. El tutor la aprueba, la rechaza con un motivo o propone otra franja, y el estudiante puede cancelarla.
+- Cada cambio de estado queda en una **bitácora** con su actor (BR-04).
+
+El sistema maneja poco volumen (unos 50 usuarios concurrentes), pero es exigente en **consistencia**: un tutor no puede tener franjas traslapadas y dos estudiantes no pueden reservar la misma franja. Por eso las reglas críticas se aplican en los servicios y, además, en restricciones de PostgreSQL.
+
+**Estado.** Hay 8 de las 11 funcionalidades implementadas (F-01 a F-06, F-10 y F-11). Faltan las notificaciones (F-07), la administración de usuarios (F-08) y el histórico (F-09). Existen cuatro roles: Estudiante, Tutor, Coordinador académico y Administrador. Los dos últimos solo pueden iniciar sesión por ahora.
+
+### 1.3 Stack tecnológico
+
+| Capa | Tecnología | Uso |
+|---|---|---|
+| Lenguaje | TypeScript (modo estricto) | Frontend, backend y paquete compartido |
+| API | Node.js 20 + Fastify 5 | Servidor HTTP, cookies, CORS y errores HTTP |
+| Validación | Zod 3 | Esquemas en `packages/shared`, usados por la API y por la SPA |
+| Datos | Prisma 5 + PostgreSQL 16 (`btree_gist`) | Consultas tipadas, migraciones y SQL directo para bloqueos y restricciones |
+| Seguridad | argon2 (argon2id), jsonwebtoken | Hash de contraseñas; firma de la sesión y del enlace de restablecimiento |
+| Correo | Nodemailer | Adaptador SMTP del puerto `EmailSender` (única integración externa, E-01) |
+| Interfaz | React 18 + React Router 6 + Vite 5 | SPA con un panel por rol |
+| Calidad | Vitest, ESLint, `tsc` | Pruebas unitarias, de integración y de rendimiento; análisis estático |
+| Despliegue | Docker Compose + Nginx, GitHub Actions | Tres contenedores; CI con PostgreSQL real |
+
+Estructura del monorepo:
+
+```text
+apps/api         API REST (módulos auth, usuarios, materias, disponibilidad, citas, email)
+apps/web         SPA React
+packages/shared  Esquemas Zod y tipos compartidos (contrato entre API y SPA)
+docs/            Arquitectura y este diagnóstico
+```
+
+### 1.4 Funcionalidad analizada y por qué
+
+Se analizó **F-01, *Autenticación y control de acceso por rol***, junto con el flujo de recuperación de contraseña que la acompaña en el Plan de Requisitos. La elección se justifica por tres razones:
+
+1. **Exposición.** Es la única parte del sistema que se puede usar sin sesión, así que cualquier persona con acceso a la red la alcanza.
+2. **Criticidad.** Protege todo lo demás: si la autenticación falla, falla el control de acceso por rol (RN-001) de las otras siete funcionalidades.
+3. **Requisito de negocio.** Responde directamente a BR-05 (seguridad y confidencialidad), y el propio Informe de Arquitectura ya reconoce brechas abiertas en esta área (§10.3).
+
+### 1.5 Método del diagnóstico
+
+1. **Revisión estática** de todos los módulos de `apps/api` y de la lógica de citas de `apps/web`. Se evaluaron la separación de capas, SOLID, el acoplamiento, la cohesión, la duplicación y la ubicación de las reglas de negocio.
+2. **Contraste** de cada comportamiento observado con el requisito del Plan y con lo que afirma el Informe de Arquitectura.
+3. **Reproducción** de cada hallazgo seleccionado con un script que usa el código real, sin modificarlo ([evidencias/medir-linea-base.ts](evidencias/medir-linea-base.ts)).
+4. **Clasificación** de cada hallazgo con estos criterios:
+
+| Tipo | Criterio usado |
+|---|---|
+| Defecto | El código incumple un requisito o una garantía documentada, y se puede reproducir. |
+| Riesgo | El código puede producir un fallo o una vulnerabilidad en ciertas condiciones, o falta un requisito explícito para decidir si es defecto. |
+| Deuda técnica | El comportamiento es correcto, pero la estructura encarece o hace frágil el cambio (duplicación, baja cohesión). |
+| Mejora | Cambio opcional sin impacto funcional ni de riesgo. |
+
+### 1.6 Requisitos relacionados
+
+Tomados del Plan de Requisitos 2026 v3:
 
 | ID | Requisito | Jira |
 |---|---|---|
@@ -26,7 +99,9 @@
 | StR-09 / SyR-12 / SWR-18 | Recuperar el acceso solicitando el restablecimiento con el correo registrado. | TUT-18 |
 | StR-10 / SyR-13 / SWR-23 | Proteger la información de los usuarios; contraseñas cifradas, nunca en texto plano. | TUT-23 |
 
-**Compromisos de la arquitectura documentada** (Informe de Arquitectura v2.0) que este diagnóstico contrasta con el código:
+### 1.7 Compromisos de la arquitectura documentada
+
+Estos son los compromisos del Informe de Arquitectura v2.0 que el diagnóstico contrasta con el código:
 
 - §5.3.1: «El error de credenciales es único para correo inexistente, contraseña incorrecta y cuenta desactivada: la respuesta no revela cuál fue.»
 - §5.3: el escenario de recuperación debe funcionar «sin filtrar información».
@@ -36,7 +111,36 @@
 
 ## 2. Arquitectura real
 
-### 2.1 Componentes que participan
+### 2.1 Vista general (contenedores)
+
+El sistema es un **monolito modular** en tres contenedores. Así, cada regla que combina varias escrituras se ejecuta en una sola transacción de base de datos (ADR-01 del Informe).
+
+```mermaid
+flowchart LR
+  E[Estudiante / Tutor /<br/>Coordinador / Administrador] -->|HTTPS| N[Nginx<br/>sirve la SPA y reenvía /api]
+  N --> W[SPA React<br/>apps/web]
+  N -->|/api| A[API REST Fastify<br/>apps/api]
+  A -->|Prisma + SQL| D[(PostgreSQL 16)]
+  A -->|SMTP, solo restablecimiento| S[Servidor de correo]
+```
+
+### 2.2 Capas del backend y patrones aplicados
+
+```text
+rutas (Fastify)  →  servicios (casos de uso)  →  puertos (interfaces)  ←  adaptadores (Prisma, argon2, JWT, SMTP)
+                                    ↑
+                          contenedor.ts (raíz de composición)
+```
+
+| Patrón o principio | Dónde | Efecto en esta funcionalidad |
+|---|---|---|
+| Puertos y adaptadores | `auth.puertos.ts`, `usuarios.puertos.ts`, `email-sender.ts` | `AuthService` y `RecuperacionDePasswordService` no conocen Prisma, argon2 ni JWT. Gracias a eso los tres hallazgos se reprodujeron sin base de datos. |
+| Inyección de dependencias con raíz de composición | `contenedor.ts` | Las pruebas sustituyen el repositorio, el cifrado o el correo sin tocar los servicios. |
+| Segregación de interfaces (ISP) | `BuscadorDeCuentas`, `ActualizadorDePassword`, `ConsultaDeSesion` | Cada consumidor recibe solo lo que usa. Por ejemplo, el middleware de sesión nunca ve el hash de la contraseña. |
+| Fábrica (Factory) | `email-sender.factory.ts` | Elige el adaptador de correo (`mock` o `smtp`) según `EMAIL_ADAPTER`. |
+| Manejo centralizado de errores | `manejador-de-errores.ts` | Los servicios lanzan `ErrorDeNegocio` y nunca exponen detalles internos (500 genérico). |
+
+### 2.3 Componentes que participan
 
 | Capa | Componente | Archivo | Responsabilidad |
 |---|---|---|---|
@@ -52,7 +156,7 @@
 | Integración | `EmailSender` (`SmtpEmailSender`, `MockEmailSender`) | [modules/email/](../../apps/api/src/modules/email/) | Envío del correo de restablecimiento (excepción E-01). |
 | Composición | `crearContenedor` | [contenedor.ts](../../apps/api/src/contenedor.ts) | Único módulo que instancia las implementaciones concretas. |
 
-### 2.2 Dependencias
+### 2.4 Dependencias
 
 ```mermaid
 flowchart LR
@@ -77,9 +181,9 @@ flowchart LR
   C --> RS
 ```
 
-La dirección de las dependencias coincide con la documentada (controlador → servicio → puerto ← adaptador). Ningún servicio importa Prisma, argon2 ni JWT. **No se encontraron violaciones de SOLID ni de separación de capas en esta funcionalidad.** Los tres hallazgos están en la lógica interna de los casos de uso.
+La dirección de las dependencias coincide con la documentada (controlador → servicio → puerto ← adaptador), y ningún servicio importa Prisma, argon2 ni JWT. La evaluación completa de diseño está en la sección 2.7.
 
-### 2.3 Flujo de la funcionalidad
+### 2.5 Flujo de la funcionalidad
 
 ```mermaid
 sequenceDiagram
@@ -109,6 +213,34 @@ sequenceDiagram
 ```
 
 Las ramas `alt` del diagrama son el origen de H-01 y H-02. La secuencia leer → comparar → escribir de `restablecer` es el origen de H-03.
+
+### 2.6 Controles de seguridad vigentes
+
+Antes de buscar fallas conviene dejar constancia de lo que ya está bien resuelto, para no proponer cambios innecesarios:
+
+| Control | Implementación | Requisito |
+|---|---|---|
+| Contraseñas con hash, nunca en texto plano | argon2id (`lib/hash.ts`); un hash dañado se trata como no coincidente | SWR-23 |
+| Sesión no accesible desde scripts del navegador | Cookie `HttpOnly`, `SameSite=Lax` y `Secure` en producción (`cookie-de-sesion.ts`) | BR-05 |
+| Desactivar una cuenta corta el acceso de inmediato | `requireAuth` vuelve a leer el rol y el estado de la cuenta en cada petición | RN-001 |
+| El mensaje de error de login es único | «Correo o contraseña incorrectos.» para los tres casos de fallo | §5.3.1 |
+| El enlace de restablecimiento caduca y se invalida al cambiar la contraseña | JWT de vida corta con la huella del hash vigente (`pwfp`) | SWR-18, ADR-06 |
+| Un fallo del correo no altera la respuesta | `solicitar` registra el error y responde igual | SWR-18 |
+| Los errores internos no se exponen | 500 con un mensaje genérico; el detalle va solo al registro | BR-05 |
+
+### 2.7 Evaluación de diseño
+
+| Aspecto | Resultado | Justificación |
+|---|---|---|
+| Separación de capas | Correcta | Las rutas solo validan y delegan ([auth.routes.ts](../../apps/api/src/modules/auth/auth.routes.ts)). Ninguna regla de negocio vive en el controlador ni en el repositorio. |
+| SRP | Sin violaciones | `AuthService` solo autentica; la recuperación está en un servicio aparte, y la cookie tiene un único punto de definición. |
+| DIP | Sin violaciones | Los servicios dependen de interfaces, y solo `contenedor.ts` instancia las implementaciones concretas. |
+| OCP | Sin violaciones | Para agregar un proveedor de correo basta con una entrada en `ADAPTADORES`, sin tocar el servicio. |
+| Acoplamiento | Bajo | Los servicios de autenticación no dependen de otros módulos de negocio. |
+| Cohesión | Alta | Cada archivo agrupa una sola responsabilidad (puertos, adaptador, servicio, ruta). |
+| Duplicación | Menor | `lib/token.ts` y `tokens-jwt.ts` forman dos capas de envoltura sobre JWT. Es aceptable porque separa la función pura del adaptador del puerto. |
+
+**Conclusión.** Los problemas encontrados **no son estructurales**. Están en la lógica interna de dos casos de uso: ramas con costo distinto según exista o no la cuenta, y una regla de unicidad sin protección ante concurrencia. Por eso las correcciones son locales y no exigen rediseñar capas ni puertos.
 
 ---
 
@@ -274,7 +406,31 @@ flowchart LR
 - Se calcula una sola vez y de forma perezosa: el primer login sin cuenta paga un `cifrar` y los siguientes solo un `verificar`.
 - La firma pública de `login`, el mensaje y el código 401 no cambian, por lo que rutas, frontend y contrato de la API no se tocan.
 
-### 5.3 Archivos afectados
+### 5.3 Justificación técnica
+
+**Modelo de amenaza.** Un atacante sin cuenta envía peticiones a `POST /auth/login` con una lista de correos y una contraseña cualquiera, y mide el tiempo de cada respuesta. Antes del cambio, cualquier respuesta de más de ~40 ms indicaba un correo registrado. Esa lista sirve para ataques de fuerza bruta o de relleno de credenciales dirigidos solo a cuentas reales, y para suplantación por correo (phishing) dirigida a estudiantes y tutores. Esto contradice BR-05 y la garantía de §5.3.1.
+
+**Causa raíz.** El trabajo costoso (argon2, diseñado deliberadamente para ser lento) solo se hacía en una de las dos ramas. El remedio correcto es **igualar el trabajo** de ambas ramas, no disimular la diferencia.
+
+**Alternativas evaluadas:**
+
+| Alternativa | Por qué se descartó o se pospuso |
+|---|---|
+| Retardo aleatorio en las respuestas fallidas | Con suficientes muestras, el promedio vuelve a separar los dos casos: el ruido aleatorio se cancela estadísticamente. Además, agrega latencia sin eliminar la causa. |
+| Retardo fijo (por ejemplo, responder siempre a los 100 ms) | Depende de que 100 ms supere siempre el costo de argon2. Si cambia el hardware o los parámetros de argon2, la garantía se rompe sin que nadie lo note. |
+| Comparación en tiempo constante (`timingSafeEqual`) | Resuelve otro problema: fugas en la comparación de bytes. La fuga aquí está en que argon2 se ejecuta o no, y `argon2.verify` ya compara en tiempo constante. |
+| Limitar los intentos (rate limiting) | Es necesario (H-05), pero no reemplaza esta corrección: con un límite por IP, un atacante con varias direcciones sigue midiendo. Las dos medidas se complementan. |
+| **Verificar siempre contra un hash ficticio** (elegida) | Iguala el trabajo real de ambas ramas con la misma función y los mismos parámetros. Sigue siendo correcta aunque cambie el hardware o el costo de argon2. Cumple la recomendación de la *OWASP Authentication Cheat Sheet* de que el tiempo de respuesta no dependa de si el usuario existe. |
+
+**Costo y efectos secundarios:**
+
+- **CPU.** Un intento con un correo inexistente ahora cuesta lo mismo que uno con un correo existente (unos 50 ms de argon2). Esto aumenta el costo de un ataque de denegación de servicio sobre `/auth/login`. Es otra razón para priorizar H-05.
+- **Memoria y arranque.** El hash ficticio se calcula de forma perezosa en el primer login fallido y se reutiliza. No afecta el arranque de la API ni los logins correctos.
+- **Compatibilidad.** No cambian el contrato HTTP, los mensajes, los códigos de estado, los puertos ni el esquema de la base de datos, por lo que no se requiere migración ni coordinar cambios con el frontend.
+
+**Principios respetados.** El hash ficticio se pide al mismo puerto `CifradoDePasswords`, así que el servicio sigue sin depender de argon2 (DIP) y el cambio queda confinado en el único método responsable del inicio de sesión (SRP).
+
+### 5.4 Archivos afectados
 
 | Archivo | Cambio |
 |---|---|
