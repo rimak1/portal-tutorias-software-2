@@ -71,4 +71,34 @@ export interface BloqueoDeCitas {
   bloquearYCargar(id: string): Promise<CitaConRelaciones | null>;
 }
 
-export interface RepositorioDeCitas extends LecturaDeCitas, EscrituraDeCitas, BloqueoDeCitas {}
+/** Filtros del histórico (F-09); todos opcionales y combinables. */
+export interface FiltroDeHistorico {
+  /** Incluye las citas cuya franja comienza en este instante o después. */
+  desde?: Date;
+  /** Solo las citas cuya franja comienza antes de este instante. */
+  hasta?: Date;
+  tutorId?: string;
+  materiaId?: string;
+  estado?: EstadoCita;
+}
+
+/** Un cambio de estado de la bitácora de una cita, con el nombre de quien lo hizo. */
+export interface EventoGuardado {
+  estadoAnterior: EstadoCita | null;
+  estadoNuevo: EstadoCita;
+  actor: { id: string; nombre: string };
+  detalle: string | null;
+  creadoEn: Date;
+}
+
+/** Consulta del histórico de tutorías de todos los usuarios (F-09). */
+export interface HistoricoDeCitas {
+  /** Citas que cumplen el filtro, de la franja más reciente a la más antigua, hasta `limite`. */
+  buscarEnHistorico(filtro: FiltroDeHistorico, limite: number): Promise<CitaConRelaciones[]>;
+  /** Null si la cita no existe. */
+  buscar(id: string): Promise<CitaConRelaciones | null>;
+  /** Cambios de estado de la cita, del más antiguo al más reciente. */
+  listarEventos(citaId: string): Promise<EventoGuardado[]>;
+}
+
+export interface RepositorioDeCitas extends LecturaDeCitas, EscrituraDeCitas, BloqueoDeCitas, HistoricoDeCitas {}

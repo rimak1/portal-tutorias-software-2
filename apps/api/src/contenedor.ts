@@ -15,7 +15,11 @@ import { EjecutorDeTransiciones } from "./modules/citas/ejecutor-de-transiciones
 import { ConsultaDeDisponibilidadService } from "./modules/disponibilidad/consulta-disponibilidad.service.js";
 import { GestionDeFranjasService } from "./modules/disponibilidad/gestion-franjas.service.js";
 import type { EmailSender } from "./modules/email/email-sender.js";
+import { HistoricoService } from "./modules/historico/historico.service.js";
 import { MateriasService } from "./modules/materias/materias.service.js";
+import { notificarCambioDeCita } from "./modules/notificaciones/notificar-cambio-de-cita.js";
+import { NotificacionesService } from "./modules/notificaciones/notificaciones.service.js";
+import { GestionDeCuentasService } from "./modules/usuarios/gestion-de-cuentas.service.js";
 import type { ConsultaDeSesion } from "./modules/usuarios/usuarios.puertos.js";
 
 export interface Contenedor {
@@ -28,6 +32,9 @@ export interface Contenedor {
   gestionFranjas: GestionDeFranjasService;
   citasEstudiante: CitasDelEstudianteService;
   citasTutor: CitasDelTutorService;
+  notificaciones: NotificacionesService;
+  cuentas: GestionDeCuentasService;
+  historico: HistoricoService;
 }
 
 export interface DependenciasDelContenedor {
@@ -51,6 +58,7 @@ export function crearContenedor(dependencias: DependenciasDelContenedor): Conten
 
   const cambiosDeCita = new CambiosDeCita();
   cambiosDeCita.suscribir(registrarEnHistorial);
+  cambiosDeCita.suscribir(notificarCambioDeCita);
   const transiciones = new EjecutorDeTransiciones(uow, cambiosDeCita, reloj);
 
   return {
@@ -70,5 +78,8 @@ export function crearContenedor(dependencias: DependenciasDelContenedor): Conten
     gestionFranjas: new GestionDeFranjasService(uow, reloj),
     citasEstudiante: new CitasDelEstudianteService(uow, cambiosDeCita, transiciones, reloj),
     citasTutor: new CitasDelTutorService(uow, transiciones, reloj),
+    notificaciones: new NotificacionesService(uow.repos.notificaciones, reloj),
+    cuentas: new GestionDeCuentasService(uow, cifradoArgon2),
+    historico: new HistoricoService(uow.repos.citas),
   };
 }

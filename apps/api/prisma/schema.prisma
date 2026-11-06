@@ -31,6 +31,7 @@ model Usuario {
   materias     TutorMateria[]
   citas        Cita[]               @relation("EstudianteCita")
   historial    HistorialEstadoCita[]
+  notificaciones Notificacion[]
   creadoEn     DateTime   @default(now()) @map("creado_en")
   actualizadoEn DateTime  @updatedAt @map("actualizado_en")
 
@@ -121,6 +122,7 @@ model Cita {
   fechaFinalizacion DateTime?  @map("fecha_finalizacion") @db.Timestamptz(3)
   propuestas        PropuestaReprogramacion[]
   historial         HistorialEstadoCita[]
+  notificaciones    Notificacion[]
 
   @@index([estudianteId, estado])
   @@index([estado, fechaFinalizacion])
@@ -157,4 +159,22 @@ model HistorialEstadoCita {
 
   @@index([citaId, creadoEn])
   @@map("historial_estado_cita")
+}
+
+/// Aviso dentro de la plataforma sobre un cambio en una cita (F-07, SWR-15). Se crea en la misma
+/// transaccion que el cambio de estado, de modo que nunca hay un cambio sin su aviso ni al reves.
+model Notificacion {
+  id        String    @id @default(uuid()) @db.Uuid
+  usuarioId String    @map("usuario_id") @db.Uuid
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id])
+  citaId    String?   @map("cita_id") @db.Uuid
+  cita      Cita?     @relation(fields: [citaId], references: [id])
+  titulo    String
+  texto     String
+  leidaEn   DateTime? @map("leida_en") @db.Timestamptz(3)
+  creadoEn  DateTime  @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  @@index([usuarioId, creadoEn])
+  @@index([usuarioId, leidaEn])
+  @@map("notificacion")
 }

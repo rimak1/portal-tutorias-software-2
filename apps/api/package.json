@@ -14,7 +14,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "crear:administrador": "tsx prisma/crear-administrador.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -30,7 +31,7 @@
     "fastify": "^5.0.0",
     "fastify-plugin": "^5.0.1",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.9.15",
+    "nodemailer": "^10.3.1",
     "pino": "^9.4.0",
     "pino-pretty": "^11.2.2",
     "zod": "^3.23.8"
@@ -38,13 +39,13 @@
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.7.4",
-    "@types/nodemailer": "^6.4.16",
+    "@types/nodemailer": "^8.0.2",
     "eslint": "^9.11.1",
-    "typescript-eslint": "^8.7.0",
     "prisma": "^5.20.0",
     "supertest": "^7.0.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",
+    "typescript-eslint": "^8.7.0",
     "vitest": "^2.1.1"
   }
 }

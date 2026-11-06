@@ -5,7 +5,7 @@
 export class ErrorDeNegocio extends Error {
   constructor(
     message: string,
-    readonly statusCode: 400 | 401 | 403 | 404 | 409,
+    readonly statusCode: 400 | 401 | 403 | 404 | 409 | 429,
   ) {
     super(message);
     this.name = "ErrorDeNegocio";
@@ -23,3 +23,10 @@ export const noEncontrado = (mensaje: string) => new ErrorDeNegocio(mensaje, 404
 
 /** 409: el estado actual del recurso no admite la operación. */
 export const conflicto = (mensaje: string) => new ErrorDeNegocio(mensaje, 409);
+
+/** 429: se agotaron los intentos permitidos; `reintentarEnSegundos` es lo que debe esperar quien los agotó. */
+export class DemasiadosIntentos extends ErrorDeNegocio {
+  constructor(readonly reintentarEnSegundos: number) {
+    super("Demasiados intentos. Espera unos minutos antes de volver a intentar.", 429);
+  }
+}

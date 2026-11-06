@@ -1,0 +1,13 @@
+# Agrega HTTPS al despliegue. Se combina con el archivo principal:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+#
+# Requiere ./certs/fullchain.pem y ./certs/privkey.pem (la carpeta certs/ no se versiona).
+# La cookie de sesion se marca Secure en produccion, asi que sin HTTPS el navegador no la envia.
+services:
+  web:
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro

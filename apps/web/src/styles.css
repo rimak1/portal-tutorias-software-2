@@ -1147,3 +1147,535 @@ a {
     opacity: 1;
   }
 }
+
+/* ---------------------------------------------------------------------- */
+/* Utilidades de accesibilidad y enlaces con apariencia de texto           */
+/* ---------------------------------------------------------------------- */
+
+.solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.enlace-boton {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--fuente-cuerpo);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--dorado-700);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.enlace-boton:hover {
+  color: var(--verde-600);
+}
+
+/* Un enlace con aspecto de botón (p. ej. la descarga del CSV) no hereda el color de enlace. */
+a.boton {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Campana de notificaciones (F-07)                                        */
+/* ---------------------------------------------------------------------- */
+
+.campana {
+  position: relative;
+}
+
+.campana__boton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: transparent;
+  border: 1px solid var(--linea-fuerte);
+  border-radius: 50%;
+  color: var(--texto-medio);
+  cursor: pointer;
+  transition: color var(--transicion-rapida), border-color var(--transicion-rapida);
+}
+
+.campana__boton:hover,
+.campana__boton[aria-expanded="true"] {
+  color: var(--texto-alto);
+  border-color: var(--dorado-500);
+}
+
+.campana__boton svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.campana__contador {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radio-pastilla);
+  background: var(--rosa-500);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.campana__bandeja {
+  position: absolute;
+  top: calc(100% + 0.625rem);
+  right: 0;
+  z-index: 20;
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: min(30rem, 70vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--crema-100);
+  color: var(--texto-crema-medio);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-md);
+  box-shadow: 0 24px 48px -16px rgba(2, 10, 6, 0.6);
+  overflow: hidden;
+}
+
+.campana__encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--crema-linea);
+}
+
+.campana__encabezado h2 {
+  font-size: 1rem;
+  color: var(--texto-crema-alto);
+}
+
+.campana__vacia {
+  padding: 1.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--texto-crema-medio);
+}
+
+.campana__bandeja .mensaje-error {
+  padding: 0.5rem 1rem 0;
+  color: var(--rosa-700);
+}
+
+.campana__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.aviso {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--crema-linea);
+  font-size: 0.875rem;
+}
+
+.aviso--nuevo {
+  background: rgba(201, 162, 75, 0.12);
+  box-shadow: inset 3px 0 0 var(--dorado-500);
+}
+
+.aviso__cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.aviso__cuerpo strong {
+  color: var(--texto-crema-alto);
+}
+
+.aviso__cuerpo time {
+  font-size: 0.75rem;
+  color: var(--texto-crema-tenue);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Tablas de datos (cuentas, histórico)                                    */
+/* ---------------------------------------------------------------------- */
+
+.tabla-contenedor {
+  overflow-x: auto;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-md);
+  box-shadow: 0 16px 32px -24px rgba(18, 33, 25, 0.35);
+}
+
+.tabla-datos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: var(--texto-crema-medio);
+}
+
+.tabla-datos th,
+.tabla-datos td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--crema-linea);
+}
+
+.tabla-datos thead th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--texto-crema-tenue);
+  background: var(--crema-50);
+  white-space: nowrap;
+}
+
+.tabla-datos tbody th {
+  font-weight: 500;
+  color: var(--texto-crema-alto);
+}
+
+.tabla-datos tbody tr:last-child th,
+.tabla-datos tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tabla-datos--compacta th,
+.tabla-datos--compacta td {
+  padding: 0.5rem 0.75rem;
+}
+
+.tabla-datos__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tabla-datos__acciones .boton {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8125rem;
+  margin-top: 0;
+}
+
+.fila-desactivada th,
+.fila-desactivada td {
+  opacity: 0.65;
+}
+
+.fila-edicion td {
+  background: var(--crema-50);
+}
+
+.etiqueta-propia {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radio-pastilla);
+  background: rgba(47, 107, 79, 0.16);
+  color: var(--verde-600);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Administración de cuentas (F-08)                                        */
+/* ---------------------------------------------------------------------- */
+
+.gestion-cuentas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.gestion-cuentas__barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.gestion-cuentas__barra .campo {
+  min-width: 11rem;
+}
+
+.gestion-cuentas__nueva {
+  margin-top: 0;
+  margin-left: auto;
+}
+
+.contenido-panel .campo select,
+.contenido-panel .campo input[type="search"],
+.contenido-panel .campo input[type="date"] {
+  min-height: 2.75rem;
+}
+
+.formulario-cuenta {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 52rem;
+  padding: 1.75rem;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-md);
+  box-shadow: 0 16px 32px -24px rgba(18, 33, 25, 0.35);
+}
+
+.formulario-cuenta--en-fila {
+  max-width: none;
+  padding: 1rem 0.25rem;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.formulario-cuenta__campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.formulario-cuenta__nota {
+  font-size: 0.8125rem;
+}
+
+.campo--completo {
+  grid-column: 1 / -1;
+}
+
+.campo__con-accion {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.campo__con-accion input {
+  flex: 1;
+  min-width: 0;
+}
+
+.campo__con-accion .boton {
+  margin-top: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Histórico y reportes (F-09)                                             */
+/* ---------------------------------------------------------------------- */
+
+.historico {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.historico__filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  align-items: end;
+  padding: 1.25rem;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-md);
+}
+
+.historico__acciones {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.historico__acciones .boton {
+  margin-top: 0;
+}
+
+.resumen-historico {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.cifra {
+  padding: 1.125rem 1.25rem;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-md);
+}
+
+.cifra dt {
+  font-size: 0.8125rem;
+  color: var(--texto-crema-tenue);
+}
+
+.cifra dd {
+  margin: 0.25rem 0 0;
+  font-family: var(--fuente-titular);
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--texto-crema-alto);
+}
+
+.resumen-historico__detalle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.resumen-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: var(--crema-100);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-md);
+}
+
+.resumen-bloque h3 {
+  font-size: 0.9375rem;
+  color: var(--texto-crema-alto);
+}
+
+.resumen-bloque .tabla-datos {
+  font-size: 0.8125rem;
+}
+
+.barras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.barras li {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.barras__pista {
+  height: 0.625rem;
+  background: var(--crema-50);
+  border: 1px solid var(--crema-linea);
+  border-radius: var(--radio-pastilla);
+  overflow: hidden;
+}
+
+.barras__relleno {
+  display: block;
+  height: 100%;
+  border-radius: var(--radio-pastilla);
+  background: var(--verde-400);
+}
+
+.barras__relleno--pendiente {
+  background: var(--dorado-500);
+}
+
+.barras__relleno--rechazada {
+  background: var(--rosa-500);
+}
+
+.barras__relleno--cancelada {
+  background: var(--texto-crema-tenue);
+}
+
+.barras__relleno--finalizada {
+  background: var(--verde-700);
+}
+
+.barras__valor small {
+  color: var(--texto-crema-tenue);
+}
+
+.bitacora {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.25rem 0.25rem 0.5rem;
+}
+
+.bitacora__eventos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bitacora__eventos li {
+  display: grid;
+  grid-template-columns: 15.5rem 1fr;
+  gap: 1rem;
+  font-size: 0.8125rem;
+}
+
+.bitacora__eventos time {
+  color: var(--texto-crema-tenue);
+}
+
+.paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.paginacion .boton {
+  margin-top: 0;
+  padding: 0.5rem 1.125rem;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 640px) {
+  .bitacora__eventos li {
+    grid-template-columns: 1fr;
+    gap: 0.125rem;
+  }
+
+  .barras li {
+    grid-template-columns: 4.5rem 1fr auto;
+  }
+}

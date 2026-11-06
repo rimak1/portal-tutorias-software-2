@@ -1,21 +1,23 @@
+import { useState } from "react";
 import { PanelLayout } from "./PanelLayout";
-import { EstadoVacio } from "../../components/EstadoVacio";
-import { IconoPersonas } from "../../components/Iconos";
+import { GestionDeCuentas } from "./administrador/GestionDeCuentas";
+import { HistoricoDeTutorias } from "./historico/HistoricoDeTutorias";
 
+type Seccion = "tutores" | "historico";
+
+/** F-08 y F-09: el coordinador registra tutores y consulta el histórico de tutorías. */
 export function CoordinadorPanel() {
+  const [seccion, setSeccion] = useState<Seccion>("tutores");
+
   return (
     <PanelLayout
       titulo="Panel del coordinador académico"
       categorias={[
-        { etiqueta: "Tutores", seleccionada: true, disponible: false },
-        { etiqueta: "Histórico de tutorías", disponible: false },
+        { etiqueta: "Tutores", seleccionada: seccion === "tutores", onSeleccionar: () => setSeccion("tutores") },
+        { etiqueta: "Histórico de tutorías", seleccionada: seccion === "historico", onSeleccionar: () => setSeccion("historico") },
       ]}
     >
-      <EstadoVacio
-        icono={<IconoPersonas />}
-        titulo="Aún no hay tutores registrados"
-        texto="Aquí gestionarás el registro de tutores y consultarás el histórico de tutorías realizadas. Esta función llega en una próxima entrega."
-      />
+      {seccion === "tutores" ? <GestionDeCuentas titulo="tutores" roles={["TUTOR"]} puedeEditar={false} /> : <HistoricoDeTutorias />}
     </PanelLayout>
   );
 }

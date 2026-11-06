@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { CitasRepository } from "../modules/citas/citas.repository.js";
 import { FranjasRepository } from "../modules/disponibilidad/franjas.repository.js";
 import { MateriasRepository } from "../modules/materias/materias.repository.js";
+import { NotificacionesRepository } from "../modules/notificaciones/notificaciones.repository.js";
 import { UsuariosRepository } from "../modules/usuarios/usuarios.repository.js";
 import type { Cliente } from "./cliente.js";
 import type { Repositorios, UnidadDeTrabajo } from "./puertos.js";
@@ -13,6 +14,7 @@ export function crearRepositorios(db: Cliente): Repositorios {
     materias: new MateriasRepository(db),
     franjas: new FranjasRepository(db),
     citas: new CitasRepository(db),
+    notificaciones: new NotificacionesRepository(db),
   };
 }
 

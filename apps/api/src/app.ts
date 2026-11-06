@@ -4,15 +4,20 @@ import cookie from "@fastify/cookie";
 import sensible from "@fastify/sensible";
 import type { Env } from "./config/env.js";
 import { crearContenedor } from "./contenedor.js";
-import type { Reloj } from "./lib/reloj.js";
+import { relojDelSistema, type Reloj } from "./lib/reloj.js";
 import { crearCookieDeSesion } from "./middleware/cookie-de-sesion.js";
 import { registrarManejadorDeErrores } from "./middleware/manejador-de-errores.js";
 import sessionPlugin from "./middleware/session.js";
+import cabecerasDeSeguridad from "./plugins/cabeceras-de-seguridad.js";
 import prismaPlugin from "./plugins/prisma.js";
 import authRoutes from "./modules/auth/auth.routes.js";
+import { LIMITES_POR_DEFECTO, crearLimites, type ConfiguracionDeLimites } from "./modules/auth/limites-de-autenticacion.js";
 import disponibilidadRoutes from "./modules/disponibilidad/disponibilidad.routes.js";
 import materiasRoutes from "./modules/materias/materias.routes.js";
 import citasRoutes from "./modules/citas/citas.routes.js";
+import historicoRoutes from "./modules/historico/historico.routes.js";
+import notificacionesRoutes from "./modules/notificaciones/notificaciones.routes.js";
+import usuariosRoutes from "./modules/usuarios/usuarios.routes.js";
 import type { EmailSender } from "./modules/email/email-sender.js";
 import { crearEmailSender } from "./modules/email/email-sender.factory.js";
 
@@ -21,11 +26,15 @@ export interface OpcionesApp {
   emailSender?: EmailSender;
   /** Fija la hora del sistema, p. ej. para probar reglas que dependen de "ahora". */
   reloj?: Reloj;
+  /** Cambia los límites de intentos de las rutas de autenticación, p. ej. para probarlos con valores pequeños. */
+  limites?: Partial<ConfiguracionDeLimites>;
 }
 
 /** Arma la aplicación HTTP completa: plugins, manejo de errores, sesión y rutas bajo `/api`. */
 export async function buildApp(env: Env, opciones: OpcionesApp = {}): Promise<FastifyInstance> {
   const app = Fastify({
+    // Detrás de Nginx la IP del cliente viene en X-Forwarded-For; se confía en un solo salto (el propio Nginx).
+    trustProxy: env.NODE_ENV === "production" ? (_direccion: string, salto: number) => salto < 1 : false,
     logger: {
       level: env.NODE_ENV === "test" ? "silent" : "info",
       transport: env.NODE_ENV === "development" ? { target: "pino-pretty" } : undefined,
@@ -34,6 +43,7 @@ export async function buildApp(env: Env, opciones: OpcionesApp = {}): Promise<Fa
 
   registrarManejadorDeErrores(app);
   await app.register(sensible);
+  await app.register(cabecerasDeSeguridad, { produccion: env.NODE_ENV === "production" });
   await app.register(cors, { origin: env.WEB_APP_URL, credentials: true });
   await app.register(cookie);
   await app.register(prismaPlugin);
@@ -61,6 +71,7 @@ export async function buildApp(env: Env, opciones: OpcionesApp = {}): Promise<Fa
         cookie: cookieDeSesion,
         auth: contenedor.auth,
         recuperacion: contenedor.recuperacion,
+        limites: crearLimites({ ...LIMITES_POR_DEFECTO, ...opciones.limites }, opciones.reloj ?? relojDelSistema),
       });
       await instance.register(disponibilidadRoutes, {
         consulta: contenedor.consultaDisponibilidad,
@@ -68,6 +79,9 @@ export async function buildApp(env: Env, opciones: OpcionesApp = {}): Promise<Fa
       });
       await instance.register(materiasRoutes, { materias: contenedor.materias });
       await instance.register(citasRoutes, { estudiante: contenedor.citasEstudiante, tutor: contenedor.citasTutor });
+      await instance.register(notificacionesRoutes, { notificaciones: contenedor.notificaciones });
+      await instance.register(usuariosRoutes, { cuentas: contenedor.cuentas });
+      await instance.register(historicoRoutes, { historico: contenedor.historico });
     },
     { prefix: "/api" },
   );

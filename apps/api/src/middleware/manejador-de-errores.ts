@@ -1,6 +1,6 @@
 import { STATUS_CODES } from "node:http";
 import type { FastifyError, FastifyInstance } from "fastify";
-import { ErrorDeNegocio } from "../lib/errors.js";
+import { DemasiadosIntentos, ErrorDeNegocio } from "../lib/errors.js";
 
 const MENSAJE_INESPERADO = "Ocurrió un error inesperado. Intenta de nuevo más tarde.";
 
@@ -26,6 +26,9 @@ export function registrarManejadorDeErrores(app: FastifyInstance): void {
     const statusCode = codigoDe(error);
     if (statusCode >= 500) {
       request.log.error({ err: error }, "Error no controlado");
+    }
+    if (error instanceof DemasiadosIntentos) {
+      reply.header("Retry-After", String(error.reintentarEnSegundos));
     }
     return reply.code(statusCode).send({
       statusCode,

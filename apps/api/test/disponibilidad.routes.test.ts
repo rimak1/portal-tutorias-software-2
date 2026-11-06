@@ -15,6 +15,7 @@ let tutorActivo: { id: string };
 let tutorOtro: { id: string };
 let materiaVigente: { id: string };
 let materiaOtra: { id: string };
+let materiaDeTutorInactivo: { id: string };
 
 beforeAll(async () => {
   app = await buildApp(env);
@@ -28,7 +29,7 @@ beforeAll(async () => {
 
   materiaVigente = await prisma.materia.create({ data: { nombre: `${P} Materia Prueba Vigente` } });
   materiaOtra = await prisma.materia.create({ data: { nombre: `${P} Materia Prueba Otra` } });
-  const materiaInactivo = await prisma.materia.create({ data: { nombre: `${P} Materia Prueba Tutor Inactivo` } });
+  materiaDeTutorInactivo = await prisma.materia.create({ data: { nombre: `${P} Materia Prueba Tutor Inactivo` } });
 
   // Futura, de un tutor activo: debe aparecer.
   await crearFranja(tutorActivo.id, materiaVigente.id, enHoras(48), enHoras(49));
@@ -37,7 +38,7 @@ beforeAll(async () => {
   // Pasada: no debe aparecer.
   await crearFranja(tutorActivo.id, materiaVigente.id, enHoras(-5), enHoras(-4));
   // Futura, pero de un tutor inactivo: no debe aparecer.
-  await crearFranja(tutorInactivo.id, materiaInactivo.id, enHoras(24), enHoras(25));
+  await crearFranja(tutorInactivo.id, materiaDeTutorInactivo.id, enHoras(24), enHoras(25));
   // Futura, pero ya reservada: no debe aparecer (RN-004).
   await crearFranja(tutorActivo.id, materiaVigente.id, enHoras(96), enHoras(97), "RESERVADA");
   // Otro tutor y otra materia: sirve para comprobar los filtros.
@@ -67,19 +68,17 @@ describe("GET /api/disponibilidad (RF-004)", () => {
   });
 
   it("devuelve solo franjas futuras de tutores activos, ordenadas por fecha", async () => {
-    const { response, lista } = await consultar();
+    // Se filtra por las materias de esta prueba: otros archivos publican franjas a la vez en la misma base.
+    const { response, lista } = await consultar(`?materiaId=${materiaVigente.id}`);
+    const { lista: deTutorInactivo } = await consultar(`?materiaId=${materiaDeTutorInactivo.id}`);
 
     expect(response.statusCode).toBe(200);
-
-    const materias = lista.map((d) => d.materia);
-    expect(materias).toContain(`${P} Materia Prueba Vigente`);
-    expect(materias).not.toContain(`${P} Materia Prueba Tutor Inactivo`);
+    expect(lista.map((d) => d.materia)).toEqual([`${P} Materia Prueba Vigente`, `${P} Materia Prueba Vigente`]);
+    expect(deTutorInactivo).toEqual([]);
 
     const fechas = lista.map((d) => new Date(d.fechaInicio).getTime());
     expect(fechas).toEqual([...fechas].sort((a, b) => a - b));
-
-    const franjaCreada = lista.find((d) => d.materia === `${P} Materia Prueba Vigente`)!;
-    expect(franjaCreada.tutor.nombre).toBe("Tutor Activo Test");
+    expect(lista[0].tutor.nombre).toBe("Tutor Activo Test");
   });
 });
 

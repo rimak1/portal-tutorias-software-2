@@ -10,3 +10,6 @@ coverage/
 .vscode/
 apps/api/prisma/dev.db
 *.tsbuildinfo
+# Certificados TLS del despliegue (nunca se versionan)
+certs/
+respaldos/

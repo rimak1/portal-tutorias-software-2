@@ -52,6 +52,7 @@ export async function limpiar(prefijo: string) {
   const ids = usuarios.map((u) => u.id);
   const citas = { OR: [{ estudianteId: { in: ids } }, { franja: { tutorId: { in: ids } } }] };
 
+  await prisma.notificacion.deleteMany({ where: { OR: [{ usuarioId: { in: ids } }, { cita: citas }] } });
   await prisma.historialEstadoCita.deleteMany({ where: { OR: [{ cita: citas }, { actorId: { in: ids } }] } });
   await prisma.propuestaReprogramacion.deleteMany({ where: { cita: citas } });
   await prisma.cita.deleteMany({ where: citas });

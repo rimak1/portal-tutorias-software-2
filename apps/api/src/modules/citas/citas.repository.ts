@@ -5,6 +5,8 @@ import {
   FranjaYaReservada,
   type CamposDeCita,
   type CitaConRelaciones,
+  type EventoGuardado,
+  type FiltroDeHistorico,
   type RegistroDeHistorial,
   type RepositorioDeCitas,
   type RespuestaAPropuesta,
@@ -72,5 +74,29 @@ export class CitasRepository implements RepositorioDeCitas {
 
   async registrarHistorial(registro: RegistroDeHistorial): Promise<void> {
     await this.db.historialEstadoCita.create({ data: registro });
+  }
+
+  buscarEnHistorico(filtro: FiltroDeHistorico, limite: number): Promise<CitaConRelaciones[]> {
+    const { desde, hasta, tutorId, materiaId, estado } = filtro;
+    return this.db.cita.findMany({
+      where: { estado, franja: { tutorId, materiaId, ...(desde || hasta ? { fechaInicio: { gte: desde, lt: hasta } } : {}) } },
+      include: INCLUDE_CITA,
+      // El id desempata franjas que comienzan a la vez, para que el orden (y la paginación) sea estable.
+      orderBy: [{ franja: { fechaInicio: "desc" } }, { id: "desc" }],
+      take: limite,
+    });
+  }
+
+  buscar(id: string): Promise<CitaConRelaciones | null> {
+    return this.db.cita.findUnique({ where: { id }, include: INCLUDE_CITA });
+  }
+
+  async listarEventos(citaId: string): Promise<EventoGuardado[]> {
+    const eventos = await this.db.historialEstadoCita.findMany({
+      where: { citaId },
+      select: { estadoAnterior: true, estadoNuevo: true, detalle: true, creadoEn: true, actor: { select: { id: true, nombre: true } } },
+      orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
+    });
+    return eventos;
   }
 }

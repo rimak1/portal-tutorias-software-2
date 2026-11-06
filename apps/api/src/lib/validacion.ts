@@ -1,4 +1,4 @@
-import { z, type ZodType } from "zod";
+import { z, type ZodType, type ZodTypeDef } from "zod";
 import { noEncontrado, solicitudInvalida } from "./errors.js";
 
 const MENSAJE_GENERICO = "Los datos enviados no son válidos.";
@@ -14,7 +14,7 @@ const MENSAJE_POR_DEFECTO_DE_ZOD = /^(Required|Invalid|Expected|String must)/;
  * @returns Los datos validados y transformados por el esquema.
  * @throws ErrorDeNegocio 400 con el mensaje del primer error encontrado.
  */
-export function validar<T>(esquema: ZodType<T>, datos: unknown, mensajePorDefecto = MENSAJE_GENERICO): T {
+export function validar<T>(esquema: ZodType<T, ZodTypeDef, unknown>, datos: unknown, mensajePorDefecto = MENSAJE_GENERICO): T {
   const resultado = esquema.safeParse(datos);
   if (resultado.success) {
     return resultado.data;

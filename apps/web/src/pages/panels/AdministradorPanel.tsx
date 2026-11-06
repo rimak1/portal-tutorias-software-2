@@ -1,18 +1,24 @@
+import { useState } from "react";
+import { ROLES } from "@portal-tutorias/shared";
 import { PanelLayout } from "./PanelLayout";
-import { EstadoVacio } from "../../components/EstadoVacio";
-import { IconoEscudo } from "../../components/Iconos";
+import { GestionDeCuentas } from "./administrador/GestionDeCuentas";
+import { HistoricoDeTutorias } from "./historico/HistoricoDeTutorias";
 
+type Seccion = "cuentas" | "historico";
+
+/** F-08 y F-09: el administrador gestiona las cuentas de todos los roles y consulta el histórico de tutorías. */
 export function AdministradorPanel() {
+  const [seccion, setSeccion] = useState<Seccion>("cuentas");
+
   return (
     <PanelLayout
       titulo="Panel del administrador"
-      categorias={[{ etiqueta: "Cuentas de usuario", seleccionada: true, disponible: false }]}
+      categorias={[
+        { etiqueta: "Cuentas de usuario", seleccionada: seccion === "cuentas", onSeleccionar: () => setSeccion("cuentas") },
+        { etiqueta: "Histórico de tutorías", seleccionada: seccion === "historico", onSeleccionar: () => setSeccion("historico") },
+      ]}
     >
-      <EstadoVacio
-        icono={<IconoEscudo />}
-        titulo="Aún no hay cuentas para administrar"
-        texto="Aquí podrás crear, editar y desactivar cuentas de usuario del portal. Esta función llega en una próxima entrega."
-      />
+      {seccion === "cuentas" ? <GestionDeCuentas titulo="cuentas" roles={[...ROLES]} puedeEditar /> : <HistoricoDeTutorias />}
     </PanelLayout>
   );
 }

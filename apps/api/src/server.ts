@@ -8,6 +8,10 @@ async function main(): Promise<void> {
   const env = loadEnv();
   const app = await buildApp(env);
 
+  if (env.NODE_ENV === "production" && env.EMAIL_ADAPTER === "mock") {
+    app.log.warn("EMAIL_ADAPTER es «mock» en producción: los correos de recuperación no se envían, solo se registran.");
+  }
+
   // Cierra el servidor y la conexión a la base de datos antes de terminar el proceso.
   for (const senal of SENALES_DE_CIERRE) {
     process.once(senal, () => {

@@ -1,9 +1,24 @@
+import { randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/hash.js";
 
+/**
+ * Datos de demostración para desarrollo. Crea cuentas de todos los roles (incluida
+ * una de administrador) con una contraseña conocida por quien lo ejecuta, así que
+ * jamás debe correr contra una base de datos real.
+ */
+if (process.env.NODE_ENV === "production") {
+  console.error("El seed crea cuentas de demostración y no puede ejecutarse con NODE_ENV=production.");
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
-const PASSWORD_DEMO = "Tutorias2026!";
+/**
+ * Contraseña de las cuentas de demostración: se genera en cada ejecución y se
+ * imprime al final, para que no haya una credencial fija en un repositorio público.
+ */
+const PASSWORD_DEMO = `Demo-${randomBytes(6).toString("hex")}`;
 
 const CATALOGO_MATERIAS = [
   "Álgebra Lineal",
@@ -78,11 +93,60 @@ async function sembrarDisponibilidad(
   });
 }
 
+type EstadoHistorico = "FINALIZADA" | "RECHAZADA" | "CANCELADA";
+
+/**
+ * Tutorías ya concluidas de un tutor con un estudiante, con su bitácora, para que
+ * el histórico y los reportes (F-09) tengan datos que mostrar. Las franjas quedan
+ * en el pasado: no aparecen en la consulta de disponibilidad.
+ */
+async function sembrarHistorico(
+  tutorId: string,
+  estudianteId: string,
+  materiaId: string,
+  casos: Array<{ horasAtras: number; duracionHoras: number; estado: EstadoHistorico; motivo?: string }>,
+) {
+  for (const caso of casos) {
+    const { fechaInicio, fechaFin } = enHoras(-caso.horasAtras, caso.duracionHoras);
+    const franja = await prisma.disponibilidad.create({
+      data: { tutorId, materiaId, fechaInicio, fechaFin, estado: caso.estado === "FINALIZADA" ? "RESERVADA" : "LIBRE" },
+    });
+    const cita = await prisma.cita.create({
+      data: {
+        estudianteId,
+        franjaId: franja.id,
+        estado: caso.estado,
+        motivoRechazo: caso.estado === "RECHAZADA" ? caso.motivo : undefined,
+        fechaFinalizacion: caso.estado === "FINALIZADA" ? fechaFin : undefined,
+        creadoEn: new Date(fechaInicio.getTime() - 48 * 60 * 60 * 1000),
+      },
+    });
+    const actorFinal = caso.estado === "CANCELADA" ? estudianteId : tutorId;
+    const hechoPor = caso.estado === "FINALIZADA" ? "Tutoría finalizada" : caso.estado === "RECHAZADA" ? (caso.motivo ?? "Solicitud rechazada") : "Cita cancelada por el estudiante";
+    await prisma.historialEstadoCita.createMany({
+      data: [
+        { citaId: cita.id, estadoAnterior: null, estadoNuevo: "PENDIENTE", actorId: estudianteId, detalle: "Solicitud de tutoría creada", creadoEn: cita.creadoEn },
+        ...(caso.estado === "FINALIZADA"
+          ? [{ citaId: cita.id, estadoAnterior: "PENDIENTE" as const, estadoNuevo: "APROBADA" as const, actorId: tutorId, detalle: "Solicitud aprobada", creadoEn: new Date(fechaInicio.getTime() - 24 * 60 * 60 * 1000) }]
+          : []),
+        {
+          citaId: cita.id,
+          estadoAnterior: caso.estado === "FINALIZADA" ? ("APROBADA" as const) : ("PENDIENTE" as const),
+          estadoNuevo: caso.estado,
+          actorId: actorFinal,
+          detalle: hechoPor,
+          creadoEn: caso.estado === "FINALIZADA" ? fechaFin : new Date(fechaInicio.getTime() - 12 * 60 * 60 * 1000),
+        },
+      ],
+    });
+  }
+}
+
 async function main() {
   const admin = await upsertUsuario("admin@uniquindio.edu.co", "Admin Portal", "ADMINISTRADOR");
   await upsertUsuario("coordinador@uniquindio.edu.co", "Coordinador Academico", "COORDINADOR");
-  await upsertUsuario("estudiante@uniquindio.edu.co", "Estudiante Demo", "ESTUDIANTE");
-  await upsertUsuario("estudiante2@uniquindio.edu.co", "Laura Rojas", "ESTUDIANTE");
+  const estudianteDemo = await upsertUsuario("estudiante@uniquindio.edu.co", "Estudiante Demo", "ESTUDIANTE");
+  const estudianteLaura = await upsertUsuario("estudiante2@uniquindio.edu.co", "Laura Rojas", "ESTUDIANTE");
 
   const tutorDemo = await upsertUsuario("tutor@uniquindio.edu.co", "Tutor Demo", "TUTOR");
   const tutorAna = await upsertUsuario("ana.martinez@uniquindio.edu.co", "Ana Martínez", "TUTOR");
@@ -106,6 +170,19 @@ async function main() {
   await sembrarDisponibilidad(tutorCarlos.id, materias, [
     { materia: "Programación I", horasDesdeAhora: 30, duracionHoras: 2 },
     { materia: "Estructuras de Datos", horasDesdeAhora: 96, duracionHoras: 1.5 },
+  ]);
+
+  await sembrarHistorico(tutorDemo.id, estudianteDemo.id, id("Bases de Datos"), [
+    { horasAtras: 24 * 12, duracionHoras: 1, estado: "FINALIZADA" },
+    { horasAtras: 24 * 6, duracionHoras: 1.5, estado: "FINALIZADA" },
+    { horasAtras: 24 * 3, duracionHoras: 1, estado: "RECHAZADA", motivo: "No atiendo ese día" },
+  ]);
+  await sembrarHistorico(tutorAna.id, estudianteLaura.id, id("Cálculo I"), [
+    { horasAtras: 24 * 9, duracionHoras: 1, estado: "FINALIZADA" },
+    { horasAtras: 24 * 2, duracionHoras: 1, estado: "CANCELADA" },
+  ]);
+  await sembrarHistorico(tutorCarlos.id, estudianteDemo.id, id("Programación I"), [
+    { horasAtras: 24 * 15, duracionHoras: 2, estado: "FINALIZADA" },
   ]);
 
   console.log("Usuarios de prueba creados. Contrasena para todos:", PASSWORD_DEMO);

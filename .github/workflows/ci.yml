@@ -55,3 +55,24 @@ jobs:
       - run: npm run build --workspace apps/web
 
       - run: npm run test
+
+  # Las imagenes del despliegue tambien se construyen en cada cambio: una dependencia que falta
+  # o un Dockerfile roto solo se notarian el dia del despliegue.
+  docker-build:
+    runs-on: ubuntu-latest
+
+    env:
+      SESSION_SECRET: ci-session-secret-solo-para-pruebas
+      RESET_TOKEN_SECRET: ci-reset-secret-solo-para-pruebas
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir las imagenes
+        run: docker compose build
+
+      - name: Validar la configuracion de Nginx (HTTP)
+        run: >
+          docker run --rm --add-host api:127.0.0.1
+          -v "$PWD/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro"
+          nginx:1.27-alpine nginx -t

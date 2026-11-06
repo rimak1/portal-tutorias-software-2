@@ -4,10 +4,12 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: portal
-      POSTGRES_PASSWORD: portal
+      # El valor por defecto sirve para desarrollo; en un entorno real se define uno propio en el .env no versionado.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-portal}
       POSTGRES_DB: portal_tutorias
     ports:
-      - "5432:5432"
+      # Solo accesible desde esta maquina (desarrollo y pruebas). Los demas contenedores usan la red interna.
+      - "127.0.0.1:5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,7 +27,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://portal:portal@db:5432/portal_tutorias?schema=public
+      DATABASE_URL: postgresql://portal:${DB_PASSWORD:-portal}@db:5432/portal_tutorias?schema=public
       PORT: 3000
       HOST: 0.0.0.0
       NODE_ENV: production

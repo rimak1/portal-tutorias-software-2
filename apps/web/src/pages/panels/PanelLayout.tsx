@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { CampanaDeNotificaciones } from "../../components/CampanaDeNotificaciones";
 import { useAuth } from "../../lib/auth-context";
 
 export interface CategoriaPanel {
@@ -38,6 +39,7 @@ export function PanelLayout({
           <h1>{titulo}</h1>
         </div>
         <div className="encabezado-panel__usuario">
+          <CampanaDeNotificaciones />
           <div className="avatar" aria-hidden="true">
             {inicial}
           </div>

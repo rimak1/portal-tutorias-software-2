@@ -1,0 +1,27 @@
+# Lo que NO debe entrar al contexto de construccion de las imagenes.
+#
+# Las dependencias se instalan dentro de la imagen (npm ci): copiar el node_modules del equipo
+# pisaria los enlaces entre paquetes del monorepo y rompe la compilacion. Los archivos .env
+# contienen secretos y no deben quedar guardados en las capas de la imagen.
+
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+
+.git
+.github
+.claude
+.agents
+.vscode
+
+.env
+**/.env
+**/.env.*
+
+docs
+respaldos
+certs
+state
+coverage
+**/*.log

@@ -8,7 +8,7 @@ type Adaptador = (env: Env, registro: Registro) => EmailSender;
 
 /** Un adaptador por valor de `EMAIL_ADAPTER`; un proveedor nuevo es una entrada más. */
 const ADAPTADORES: Record<Env["EMAIL_ADAPTER"], Adaptador> = {
-  mock: (_env, registro) => new MockEmailSender(registro),
+  mock: (env, registro) => new MockEmailSender(registro, env.NODE_ENV !== "production"),
   smtp: (env) => new SmtpEmailSender(env),
 };
 

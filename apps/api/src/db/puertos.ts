@@ -1,6 +1,7 @@
 import type { RepositorioDeCitas } from "../modules/citas/citas.puertos.js";
 import type { RepositorioDeFranjas } from "../modules/disponibilidad/franjas.puertos.js";
 import type { RepositorioDeMaterias } from "../modules/materias/materias.puertos.js";
+import type { RepositorioDeNotificaciones } from "../modules/notificaciones/notificaciones.puertos.js";
 import type { RepositorioDeUsuarios } from "../modules/usuarios/usuarios.puertos.js";
 
 export interface Repositorios {
@@ -8,6 +9,7 @@ export interface Repositorios {
   materias: RepositorioDeMaterias;
   franjas: RepositorioDeFranjas;
   citas: RepositorioDeCitas;
+  notificaciones: RepositorioDeNotificaciones;
 }
 
 /** Acceso a los repositorios, con o sin transacción. */

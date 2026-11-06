@@ -51,3 +51,23 @@ export function IconoPersonas() {
     </Icono>
   );
 }
+
+export function IconoCampana() {
+  return (
+    <Icono>
+      <path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.25 1.5H4.75L6 16.5z" strokeLinejoin="round" />
+      <path d="M10 20.5a2 2 0 0 0 4 0" strokeLinecap="round" />
+    </Icono>
+  );
+}
+
+export function IconoGrafica() {
+  return (
+    <Icono>
+      <path d="M4 20h16" strokeLinecap="round" />
+      <rect x="5.5" y="11" width="3" height="7" rx="0.75" />
+      <rect x="10.5" y="6" width="3" height="12" rx="0.75" />
+      <rect x="15.5" y="13.5" width="3" height="4.5" rx="0.75" />
+    </Icono>
+  );
+}
